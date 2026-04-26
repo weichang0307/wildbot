@@ -1,0 +1,12 @@
+ultralytics
+torch
+torchvision
+numpy
+opencv-python
+matplotlib
+pandas
+scikit-learn
+scipy
+seaborn
+jupyterlab
+notebook

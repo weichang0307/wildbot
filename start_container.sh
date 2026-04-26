@@ -1,0 +1,1 @@
+sudo docker run -it -v $(pwd):/ros2_ws my-car-env
