@@ -1,0 +1,449 @@
+[0.074s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build']
+[0.074s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='build', build_base='build', install_base='install', merge_install=False, symlink_install=False, test_result_base=None, continue_on_error=False, executor='parallel', parallel_workers=28, event_handlers=None, ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['.'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=None, packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, cmake_args=None, cmake_target=None, cmake_target_skip_unavailable=False, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, ament_cmake_args=None, catkin_cmake_args=None, catkin_skip_building_tests=False, mixin_files=None, mixin=None, verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0x7a41d77b45e0>, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x7a41d7787f70>, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x7a41d7787f70>>, mixin_verb=('build',))
+[0.174s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.174s] INFO:colcon.colcon_metadata.package_discovery.colcon_meta:Using configuration from '/root/.colcon/metadata/default/Gazebo.meta'
+[0.175s] INFO:colcon.colcon_metadata.package_discovery.colcon_meta:Using configuration from '/root/.colcon/metadata/default/fastdds.meta'
+[0.175s] INFO:colcon.colcon_metadata.package_discovery.colcon_meta:Using configuration from '/root/.colcon/metadata/default/fastrtps.meta'
+[0.175s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.175s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.175s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.175s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[0.175s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.175s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/ros2_ws'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[0.193s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['cmake', 'python']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'cmake'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['python_setup_py']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python_setup_py'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extensions ['ignore', 'ignore_ament_install']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extension 'ignore'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(build) ignored
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extensions ['ignore', 'ignore_ament_install']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extension 'ignore'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(install) ignored
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extensions ['ignore', 'ignore_ament_install']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extension 'ignore'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(log) ignored
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ignore', 'ignore_ament_install']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ignore_ament_install'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_pkg']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_pkg'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['colcon_meta']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'colcon_meta'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['ros']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'ros'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['cmake', 'python']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'cmake'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extensions ['python_setup_py']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src) by extension 'python_setup_py'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extensions ['ignore', 'ignore_ament_install']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extension 'ignore'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extension 'ignore_ament_install'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extensions ['colcon_pkg']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extension 'colcon_pkg'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extensions ['colcon_meta']
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extension 'colcon_meta'
+[0.194s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extensions ['ros']
+[0.195s] Level 1:colcon.colcon_core.package_identification:_identify(src/my_yolo) by extension 'ros'
+[0.201s] DEBUG:colcon.colcon_core.package_identification:Package 'src/my_yolo' with type 'ros.ament_python' and name 'my_yolo'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extensions ['ignore', 'ignore_ament_install']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extension 'ignore'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extension 'ignore_ament_install'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extensions ['colcon_pkg']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extension 'colcon_pkg'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extensions ['colcon_meta']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extension 'colcon_meta'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extensions ['ros']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extension 'ros'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extensions ['cmake', 'python']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extension 'cmake'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extension 'python'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extensions ['python_setup_py']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train) by extension 'python_setup_py'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extensions ['ignore', 'ignore_ament_install']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extension 'ignore'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extension 'ignore_ament_install'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extensions ['colcon_pkg']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extension 'colcon_pkg'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extensions ['colcon_meta']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extension 'colcon_meta'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extensions ['ros']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extension 'ros'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extensions ['cmake', 'python']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extension 'cmake'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extension 'python'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extensions ['python_setup_py']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset) by extension 'python_setup_py'
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extensions ['ignore', 'ignore_ament_install']
+[0.201s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extension 'ignore'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extension 'ignore_ament_install'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extensions ['colcon_pkg']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extension 'colcon_pkg'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extensions ['colcon_meta']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extension 'colcon_meta'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extensions ['ros']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extension 'ros'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extensions ['cmake', 'python']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extension 'cmake'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extension 'python'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extensions ['python_setup_py']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1) by extension 'python_setup_py'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extensions ['ignore', 'ignore_ament_install']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extension 'ignore'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extension 'ignore_ament_install'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extensions ['colcon_pkg']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extension 'colcon_pkg'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extensions ['colcon_meta']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extension 'colcon_meta'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extensions ['ros']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extension 'ros'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extensions ['cmake', 'python']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extension 'cmake'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extension 'python'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extensions ['python_setup_py']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train) by extension 'python_setup_py'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extensions ['ignore', 'ignore_ament_install']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extension 'ignore'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extension 'ignore_ament_install'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extensions ['colcon_pkg']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extension 'colcon_pkg'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extensions ['colcon_meta']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extension 'colcon_meta'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extensions ['ros']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extension 'ros'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extensions ['cmake', 'python']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extension 'cmake'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extension 'python'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extensions ['python_setup_py']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/images) by extension 'python_setup_py'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extensions ['ignore', 'ignore_ament_install']
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extension 'ignore'
+[0.202s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extension 'ignore_ament_install'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extensions ['colcon_pkg']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extension 'colcon_pkg'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extensions ['colcon_meta']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extension 'colcon_meta'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extensions ['ros']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extension 'ros'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extensions ['cmake', 'python']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extension 'cmake'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extension 'python'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extensions ['python_setup_py']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/train/labels) by extension 'python_setup_py'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extensions ['ignore', 'ignore_ament_install']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extension 'ignore'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extension 'ignore_ament_install'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extensions ['colcon_pkg']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extension 'colcon_pkg'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extensions ['colcon_meta']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extension 'colcon_meta'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extensions ['ros']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extension 'ros'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extensions ['cmake', 'python']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extension 'cmake'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extension 'python'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extensions ['python_setup_py']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid) by extension 'python_setup_py'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extensions ['ignore', 'ignore_ament_install']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extension 'ignore'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extension 'ignore_ament_install'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extensions ['colcon_pkg']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extension 'colcon_pkg'
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extensions ['colcon_meta']
+[0.203s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extension 'colcon_meta'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extensions ['ros']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extension 'ros'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extensions ['cmake', 'python']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extension 'cmake'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extension 'python'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extensions ['python_setup_py']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/images) by extension 'python_setup_py'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extensions ['ignore', 'ignore_ament_install']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extension 'ignore'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extension 'ignore_ament_install'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extensions ['colcon_pkg']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extension 'colcon_pkg'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extensions ['colcon_meta']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extension 'colcon_meta'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extensions ['ros']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extension 'ros'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extensions ['cmake', 'python']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extension 'cmake'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extension 'python'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extensions ['python_setup_py']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/dataset/bear_v1/valid/labels) by extension 'python_setup_py'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extensions ['ignore', 'ignore_ament_install']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extension 'ignore'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extension 'ignore_ament_install'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extensions ['colcon_pkg']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extension 'colcon_pkg'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extensions ['colcon_meta']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extension 'colcon_meta'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extensions ['ros']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extension 'ros'
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extensions ['cmake', 'python']
+[0.204s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extension 'cmake'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extension 'python'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extensions ['python_setup_py']
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs) by extension 'python_setup_py'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extensions ['ignore', 'ignore_ament_install']
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extension 'ignore'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extension 'ignore_ament_install'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extensions ['colcon_pkg']
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extension 'colcon_pkg'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extensions ['colcon_meta']
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extension 'colcon_meta'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extensions ['ros']
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extension 'ros'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extensions ['cmake', 'python']
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extension 'cmake'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extension 'python'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extensions ['python_setup_py']
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect) by extension 'python_setup_py'
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extensions ['ignore', 'ignore_ament_install']
+[0.205s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extension 'ignore'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extension 'ignore_ament_install'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extensions ['colcon_pkg']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extension 'colcon_pkg'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extensions ['colcon_meta']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extension 'colcon_meta'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extensions ['ros']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extension 'ros'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extensions ['cmake', 'python']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extension 'cmake'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extension 'python'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extensions ['python_setup_py']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug) by extension 'python_setup_py'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extensions ['ignore', 'ignore_ament_install']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extension 'ignore'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extension 'ignore_ament_install'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extensions ['colcon_pkg']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extension 'colcon_pkg'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extensions ['colcon_meta']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extension 'colcon_meta'
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extensions ['ros']
+[0.206s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extension 'ros'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extensions ['cmake', 'python']
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extension 'cmake'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extension 'python'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extensions ['python_setup_py']
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug/weights) by extension 'python_setup_py'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extensions ['ignore', 'ignore_ament_install']
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extension 'ignore'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extension 'ignore_ament_install'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extensions ['colcon_pkg']
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extension 'colcon_pkg'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extensions ['colcon_meta']
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extension 'colcon_meta'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extensions ['ros']
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extension 'ros'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extensions ['cmake', 'python']
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extension 'cmake'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extension 'python'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extensions ['python_setup_py']
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2) by extension 'python_setup_py'
+[0.207s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extensions ['ignore', 'ignore_ament_install']
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extension 'ignore'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extension 'ignore_ament_install'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extensions ['colcon_pkg']
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extension 'colcon_pkg'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extensions ['colcon_meta']
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extension 'colcon_meta'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extensions ['ros']
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extension 'ros'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extensions ['cmake', 'python']
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extension 'cmake'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extension 'python'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extensions ['python_setup_py']
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-2/weights) by extension 'python_setup_py'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extensions ['ignore', 'ignore_ament_install']
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extension 'ignore'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extension 'ignore_ament_install'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extensions ['colcon_pkg']
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extension 'colcon_pkg'
+[0.208s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extensions ['colcon_meta']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extension 'colcon_meta'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extensions ['ros']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extension 'ros'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extensions ['cmake', 'python']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extension 'cmake'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extension 'python'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extensions ['python_setup_py']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3) by extension 'python_setup_py'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extensions ['ignore', 'ignore_ament_install']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extension 'ignore'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extension 'ignore_ament_install'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extensions ['colcon_pkg']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extension 'colcon_pkg'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extensions ['colcon_meta']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extension 'colcon_meta'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extensions ['ros']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extension 'ros'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extensions ['cmake', 'python']
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extension 'cmake'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extension 'python'
+[0.209s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extensions ['python_setup_py']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-3/weights) by extension 'python_setup_py'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extensions ['ignore', 'ignore_ament_install']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extension 'ignore'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extension 'ignore_ament_install'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extensions ['colcon_pkg']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extension 'colcon_pkg'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extensions ['colcon_meta']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extension 'colcon_meta'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extensions ['ros']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extension 'ros'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extensions ['cmake', 'python']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extension 'cmake'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extension 'python'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extensions ['python_setup_py']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4) by extension 'python_setup_py'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extensions ['ignore', 'ignore_ament_install']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extension 'ignore'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extension 'ignore_ament_install'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extensions ['colcon_pkg']
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extension 'colcon_pkg'
+[0.210s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extensions ['colcon_meta']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extension 'colcon_meta'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extensions ['ros']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extension 'ros'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extensions ['cmake', 'python']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extension 'cmake'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extension 'python'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extensions ['python_setup_py']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-4/weights) by extension 'python_setup_py'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extensions ['ignore', 'ignore_ament_install']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extension 'ignore'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extension 'ignore_ament_install'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extensions ['colcon_pkg']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extension 'colcon_pkg'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extensions ['colcon_meta']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extension 'colcon_meta'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extensions ['ros']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extension 'ros'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extensions ['cmake', 'python']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extension 'cmake'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extension 'python'
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extensions ['python_setup_py']
+[0.211s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5) by extension 'python_setup_py'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extensions ['ignore', 'ignore_ament_install']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extension 'ignore'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extension 'ignore_ament_install'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extensions ['colcon_pkg']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extension 'colcon_pkg'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extensions ['colcon_meta']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extension 'colcon_meta'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extensions ['ros']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extension 'ros'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extensions ['cmake', 'python']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extension 'cmake'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extension 'python'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extensions ['python_setup_py']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-5/weights) by extension 'python_setup_py'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extensions ['ignore', 'ignore_ament_install']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extension 'ignore'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extension 'ignore_ament_install'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extensions ['colcon_pkg']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extension 'colcon_pkg'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extensions ['colcon_meta']
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extension 'colcon_meta'
+[0.212s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extensions ['ros']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extension 'ros'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extensions ['cmake', 'python']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extension 'cmake'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extension 'python'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extensions ['python_setup_py']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6) by extension 'python_setup_py'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extensions ['ignore', 'ignore_ament_install']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extension 'ignore'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extension 'ignore_ament_install'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extensions ['colcon_pkg']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extension 'colcon_pkg'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extensions ['colcon_meta']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extension 'colcon_meta'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extensions ['ros']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extension 'ros'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extensions ['cmake', 'python']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extension 'cmake'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extension 'python'
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extensions ['python_setup_py']
+[0.213s] Level 1:colcon.colcon_core.package_identification:_identify(yolo_train/runs/detect/yolo_bear_aug-6/weights) by extension 'python_setup_py'
+[0.213s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[0.213s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[0.213s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[0.213s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[0.214s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'cmake_args' from command line to 'None'
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'cmake_target' from command line to 'None'
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'cmake_clean_cache' from command line to 'False'
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'cmake_clean_first' from command line to 'False'
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'cmake_force_configure' from command line to 'False'
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'ament_cmake_args' from command line to 'None'
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'catkin_cmake_args' from command line to 'None'
+[0.226s] Level 5:colcon.colcon_core.verb:set package 'my_yolo' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.226s] DEBUG:colcon.colcon_core.verb:Building package 'my_yolo' with the following arguments: {'ament_cmake_args': None, 'build_base': '/ros2_ws/build/my_yolo', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/ros2_ws/install/my_yolo', 'merge_install': False, 'path': '/ros2_ws/src/my_yolo', 'symlink_install': False, 'test_result_base': None}
+[0.226s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[0.227s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[0.227s] INFO:colcon.colcon_ros.task.ament_python.build:Building ROS package in '/ros2_ws/src/my_yolo' with build type 'ament_python'
+[0.227s] Level 1:colcon.colcon_core.shell:create_environment_hook('my_yolo', 'ament_prefix_path')
+[0.228s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.228s] INFO:colcon.colcon_core.shell:Creating environment hook '/ros2_ws/install/my_yolo/share/my_yolo/hook/ament_prefix_path.ps1'
+[0.229s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/ros2_ws/install/my_yolo/share/my_yolo/hook/ament_prefix_path.dsv'
+[0.229s] INFO:colcon.colcon_core.shell:Creating environment hook '/ros2_ws/install/my_yolo/share/my_yolo/hook/ament_prefix_path.sh'
+[0.229s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.229s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.361s] INFO:colcon.colcon_core.task.python.build:Building Python package in '/ros2_ws/src/my_yolo'
+[0.362s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.362s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.555s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/ros2_ws/src/my_yolo': PYTHONPATH=/ros2_ws/build/my_yolo/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/ros2_ws/install/my_yolo/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/my_yolo build --build-base /ros2_ws/build/my_yolo/build install --record /ros2_ws/build/my_yolo/install.log --single-version-externally-managed install_data
+[0.713s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/ros2_ws/src/my_yolo' returned '0': PYTHONPATH=/ros2_ws/build/my_yolo/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/ros2_ws/install/my_yolo/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/my_yolo build --build-base /ros2_ws/build/my_yolo/build install --record /ros2_ws/build/my_yolo/install.log --single-version-externally-managed install_data
+[0.715s] Level 1:colcon.colcon_core.environment:checking '/ros2_ws/install/my_yolo' for CMake module files
+[0.715s] Level 1:colcon.colcon_core.environment:checking '/ros2_ws/install/my_yolo' for CMake config files
+[0.716s] Level 1:colcon.colcon_core.environment:checking '/ros2_ws/install/my_yolo/lib'
+[0.716s] Level 1:colcon.colcon_core.environment:checking '/ros2_ws/install/my_yolo/bin'
+[0.716s] Level 1:colcon.colcon_core.environment:checking '/ros2_ws/install/my_yolo/lib/pkgconfig/my_yolo.pc'
+[0.716s] Level 1:colcon.colcon_core.environment:checking '/ros2_ws/install/my_yolo/lib/python3.10/site-packages'
+[0.716s] Level 1:colcon.colcon_core.shell:create_environment_hook('my_yolo', 'pythonpath')
+[0.717s] INFO:colcon.colcon_core.shell:Creating environment hook '/ros2_ws/install/my_yolo/share/my_yolo/hook/pythonpath.ps1'
+[0.717s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/ros2_ws/install/my_yolo/share/my_yolo/hook/pythonpath.dsv'
+[0.717s] INFO:colcon.colcon_core.shell:Creating environment hook '/ros2_ws/install/my_yolo/share/my_yolo/hook/pythonpath.sh'
+[0.718s] Level 1:colcon.colcon_core.environment:checking '/ros2_ws/install/my_yolo/bin'
+[0.718s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(my_yolo)
+[0.718s] INFO:colcon.colcon_core.shell:Creating package script '/ros2_ws/install/my_yolo/share/my_yolo/package.ps1'
+[0.719s] INFO:colcon.colcon_core.shell:Creating package descriptor '/ros2_ws/install/my_yolo/share/my_yolo/package.dsv'
+[0.720s] INFO:colcon.colcon_core.shell:Creating package script '/ros2_ws/install/my_yolo/share/my_yolo/package.sh'
+[0.720s] INFO:colcon.colcon_core.shell:Creating package script '/ros2_ws/install/my_yolo/share/my_yolo/package.bash'
+[0.721s] INFO:colcon.colcon_core.shell:Creating package script '/ros2_ws/install/my_yolo/share/my_yolo/package.zsh'
+[0.721s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/ros2_ws/install/my_yolo/share/colcon-core/packages/my_yolo)
+[0.722s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[0.722s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[0.722s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '0'
+[0.722s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[0.725s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.notify_send': Could not find 'notify-send'
+[0.725s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[0.725s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[0.725s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[0.725s] DEBUG:colcon.colcon_notification.desktop_notification.notify2:Failed to initialize notify2: org.freedesktop.DBus.Error.InvalidFileContent: D-Bus library appears to be incorrectly set up: see the manual page for dbus-uuidgen to correct this issue. (Failed to open "/var/lib/dbus/machine-id": No such file or directory; UUID file '/etc/machine-id' should contain a hex string of length 32, not length 0, with no other text)
+[0.725s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[0.726s] INFO:colcon.colcon_core.shell:Creating prefix script '/ros2_ws/install/local_setup.ps1'
+[0.726s] INFO:colcon.colcon_core.shell:Creating prefix util module '/ros2_ws/install/_local_setup_util_ps1.py'
+[0.727s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/ros2_ws/install/setup.ps1'
+[0.727s] INFO:colcon.colcon_core.shell:Creating prefix script '/ros2_ws/install/local_setup.sh'
+[0.728s] INFO:colcon.colcon_core.shell:Creating prefix util module '/ros2_ws/install/_local_setup_util_sh.py'
+[0.728s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/ros2_ws/install/setup.sh'
+[0.728s] INFO:colcon.colcon_core.shell:Creating prefix script '/ros2_ws/install/local_setup.bash'
+[0.729s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/ros2_ws/install/setup.bash'
+[0.729s] INFO:colcon.colcon_core.shell:Creating prefix script '/ros2_ws/install/local_setup.zsh'
+[0.729s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/ros2_ws/install/setup.zsh'

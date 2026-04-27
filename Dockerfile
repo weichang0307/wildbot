@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
     git \
     python3-pip \
     python3-venv \
+    ros-humble-cv-bridge \
+    ros-humble-vision-msgs \
+    libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
@@ -21,6 +24,7 @@ RUN pip3 install -r requirements.txt
 
 # Automatically source the ROS 2 environment variables
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+RUN echo "source /ros2_ws/install/setup.bash" >> ~/.bashrc
 
 # Set the default command
 CMD ["bash"]

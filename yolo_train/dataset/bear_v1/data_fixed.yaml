@@ -1,0 +1,5 @@
+train: /ros2_ws/yolo_train/dataset/bear_v1/train/images
+val: /ros2_ws/yolo_train/dataset/bear_v1/valid/images
+nc: 1
+names:
+- '0'

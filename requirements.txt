@@ -1,7 +1,7 @@
 ultralytics
 torch
 torchvision
-numpy
+numpy<2.0.0
 opencv-python
 matplotlib
 pandas
@@ -10,3 +10,4 @@ scipy
 seaborn
 jupyterlab
 notebook
+pynput

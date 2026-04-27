@@ -1,0 +1,13 @@
+package.xml
+setup.cfg
+setup.py
+my_control/__init__.py
+my_control/my_control_node.py
+my_control.egg-info/PKG-INFO
+my_control.egg-info/SOURCES.txt
+my_control.egg-info/dependency_links.txt
+my_control.egg-info/entry_points.txt
+my_control.egg-info/requires.txt
+my_control.egg-info/top_level.txt
+my_control.egg-info/zip-safe
+resource/my_control

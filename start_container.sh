@@ -1,1 +1,1 @@
-sudo docker run -it -v $(pwd):/ros2_ws my-car-env
+sudo docker run -it --gpus all --shm-size=8g --network compose_my_bridge_network --env-file .env -v $(pwd):/ros2_ws my-car-env

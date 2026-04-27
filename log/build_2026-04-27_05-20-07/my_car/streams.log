@@ -1,0 +1,23 @@
+[0.498s] Invoking command in '/ros2_ws/build/my_car': PYTHONPATH=/ros2_ws/build/my_car/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/ros2_ws/install/my_car/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /ros2_ws/build/my_car/build --no-deps symlink_data
+[0.607s] running develop
+[0.660s] running egg_info
+[0.660s] creating my_car.egg-info
+[0.660s] writing my_car.egg-info/PKG-INFO
+[0.660s] writing dependency_links to my_car.egg-info/dependency_links.txt
+[0.660s] writing entry points to my_car.egg-info/entry_points.txt
+[0.660s] writing requirements to my_car.egg-info/requires.txt
+[0.660s] writing top-level names to my_car.egg-info/top_level.txt
+[0.660s] writing manifest file 'my_car.egg-info/SOURCES.txt'
+[0.661s] reading manifest file 'my_car.egg-info/SOURCES.txt'
+[0.661s] writing manifest file 'my_car.egg-info/SOURCES.txt'
+[0.662s] running build_ext
+[0.662s] Creating /ros2_ws/install/my_car/lib/python3.10/site-packages/my-car.egg-link (link to .)
+[0.662s] 
+[0.662s] Installed /ros2_ws/build/my_car
+[0.662s] running symlink_data
+[0.662s] creating /ros2_ws/install/my_car/share/ament_index
+[0.662s] creating /ros2_ws/install/my_car/share/ament_index/resource_index
+[0.662s] creating /ros2_ws/install/my_car/share/ament_index/resource_index/packages
+[0.663s] symbolically linking /ros2_ws/build/my_car/resource/my_car -> /ros2_ws/install/my_car/share/ament_index/resource_index/packages
+[0.663s] symbolically linking /ros2_ws/build/my_car/package.xml -> /ros2_ws/install/my_car/share/my_car
+[0.682s] Invoked command in '/ros2_ws/build/my_car' returned '0': PYTHONPATH=/ros2_ws/build/my_car/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/ros2_ws/install/my_car/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /ros2_ws/build/my_car/build --no-deps symlink_data

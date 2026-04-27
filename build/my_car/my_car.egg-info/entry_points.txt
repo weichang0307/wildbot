@@ -1,0 +1,3 @@
+[console_scripts]
+run = my_car.main:main
+

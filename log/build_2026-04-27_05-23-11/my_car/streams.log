@@ -1,0 +1,18 @@
+[0.491s] Invoking command in '/ros2_ws/build/my_car': PYTHONPATH=/ros2_ws/build/my_car/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/ros2_ws/install/my_car/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /ros2_ws/build/my_car/build --no-deps symlink_data
+[0.594s] running develop
+[0.646s] running egg_info
+[0.646s] writing my_car.egg-info/PKG-INFO
+[0.646s] writing dependency_links to my_car.egg-info/dependency_links.txt
+[0.646s] writing entry points to my_car.egg-info/entry_points.txt
+[0.646s] writing requirements to my_car.egg-info/requires.txt
+[0.646s] writing top-level names to my_car.egg-info/top_level.txt
+[0.647s] reading manifest file 'my_car.egg-info/SOURCES.txt'
+[0.647s] writing manifest file 'my_car.egg-info/SOURCES.txt'
+[0.648s] running build_ext
+[0.648s] Creating /ros2_ws/install/my_car/lib/python3.10/site-packages/my-car.egg-link (link to .)
+[0.648s] Installing run script to /ros2_ws/install/my_car/lib/my_car
+[0.648s] Installing test script to /ros2_ws/install/my_car/lib/my_car
+[0.648s] 
+[0.648s] Installed /ros2_ws/build/my_car
+[0.649s] running symlink_data
+[0.662s] Invoked command in '/ros2_ws/build/my_car' returned '0': PYTHONPATH=/ros2_ws/build/my_car/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/ros2_ws/install/my_car/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /ros2_ws/build/my_car/build --no-deps symlink_data

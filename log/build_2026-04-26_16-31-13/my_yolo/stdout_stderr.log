@@ -1,0 +1,35 @@
+running egg_info
+creating ../../build/my_yolo/my_yolo.egg-info
+writing ../../build/my_yolo/my_yolo.egg-info/PKG-INFO
+writing dependency_links to ../../build/my_yolo/my_yolo.egg-info/dependency_links.txt
+writing entry points to ../../build/my_yolo/my_yolo.egg-info/entry_points.txt
+writing requirements to ../../build/my_yolo/my_yolo.egg-info/requires.txt
+writing top-level names to ../../build/my_yolo/my_yolo.egg-info/top_level.txt
+writing manifest file '../../build/my_yolo/my_yolo.egg-info/SOURCES.txt'
+reading manifest file '../../build/my_yolo/my_yolo.egg-info/SOURCES.txt'
+writing manifest file '../../build/my_yolo/my_yolo.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /ros2_ws/build/my_yolo/build
+creating /ros2_ws/build/my_yolo/build/lib
+creating /ros2_ws/build/my_yolo/build/lib/my_yolo
+copying my_yolo/my_yolo_node.py -> /ros2_ws/build/my_yolo/build/lib/my_yolo
+copying my_yolo/__init__.py -> /ros2_ws/build/my_yolo/build/lib/my_yolo
+running install
+running install_lib
+creating /ros2_ws/install/my_yolo/lib/python3.10/site-packages/my_yolo
+copying /ros2_ws/build/my_yolo/build/lib/my_yolo/my_yolo_node.py -> /ros2_ws/install/my_yolo/lib/python3.10/site-packages/my_yolo
+copying /ros2_ws/build/my_yolo/build/lib/my_yolo/__init__.py -> /ros2_ws/install/my_yolo/lib/python3.10/site-packages/my_yolo
+byte-compiling /ros2_ws/install/my_yolo/lib/python3.10/site-packages/my_yolo/my_yolo_node.py to my_yolo_node.cpython-310.pyc
+byte-compiling /ros2_ws/install/my_yolo/lib/python3.10/site-packages/my_yolo/__init__.py to __init__.cpython-310.pyc
+running install_data
+creating /ros2_ws/install/my_yolo/share/ament_index
+creating /ros2_ws/install/my_yolo/share/ament_index/resource_index
+creating /ros2_ws/install/my_yolo/share/ament_index/resource_index/packages
+copying resource/my_yolo -> /ros2_ws/install/my_yolo/share/ament_index/resource_index/packages
+copying package.xml -> /ros2_ws/install/my_yolo/share/my_yolo
+running install_egg_info
+Copying ../../build/my_yolo/my_yolo.egg-info to /ros2_ws/install/my_yolo/lib/python3.10/site-packages/my_yolo-0.0.0-py3.10.egg-info
+running install_scripts
+Installing yolo_node script to /ros2_ws/install/my_yolo/lib/my_yolo
+writing list of installed files to '/ros2_ws/build/my_yolo/install.log'

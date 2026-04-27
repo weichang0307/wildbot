@@ -1,0 +1,3 @@
+[console_scripts]
+yolo_node = my_yolo.my_yolo_node:main
+

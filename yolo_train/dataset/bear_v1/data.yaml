@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['0']
+
+roboflow:
+  workspace: weis-workspace-q7l4p
+  project: weis-workspace-q7l4p
+  version: dataset
+  license: Private
+  url: https://app.roboflow.com/weis-workspace-q7l4p/weis-workspace-q7l4p/dataset

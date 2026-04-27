@@ -1,0 +1,15 @@
+package.xml
+setup.cfg
+setup.py
+my_car/__init__.py
+my_car/main.py
+my_car/my_control_node.py
+my_car/my_yolo_node.py
+my_car.egg-info/PKG-INFO
+my_car.egg-info/SOURCES.txt
+my_car.egg-info/dependency_links.txt
+my_car.egg-info/entry_points.txt
+my_car.egg-info/requires.txt
+my_car.egg-info/top_level.txt
+my_car.egg-info/zip-safe
+resource/my_car
