@@ -1,0 +1,6 @@
+build/
+install/
+log/
+yolo_train/runs/
+yolo_train/dataset/
+yolo_train/*.pt
