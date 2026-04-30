@@ -14,7 +14,10 @@ RUN apt-get update && apt-get install -y \
     ros-humble-cv-bridge \
     ros-humble-vision-msgs \
     libgl1 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    sudo apt-get update \
+    sudo apt-get install ros-humble-rosbag2-storage-mcap
+
 
 # Copy the requirements file into the container
 COPY requirements.txt /ros2_ws/
