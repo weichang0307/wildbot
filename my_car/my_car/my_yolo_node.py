@@ -27,7 +27,17 @@ class MyYoloNode(Node):
         # 3. Load YOLO model
         self.get_logger().info("Loading YOLO model...")
         self.model = YOLO('/ros2_ws/my_car/model/best.pt')
+        
+        # Force YOLO to use the AMD GPU (ROCm maps this to 'cuda')
+        import torch
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.model.to(device)
+        
         self.get_logger().info("YOLO model loaded successfully!")
+
+        # show the device
+        self.get_logger().info(f"YOLO model is running on device: {self.model.device}")
+
 
     def image_callback(self, msg):
         # Convert the ROS Image message to an OpenCV image

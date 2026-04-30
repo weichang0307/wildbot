@@ -16,6 +16,8 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.2
+
 # Copy the requirements file into the container
 COPY requirements.txt /ros2_ws/
 
