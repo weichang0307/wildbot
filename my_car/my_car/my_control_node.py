@@ -1,9 +1,13 @@
+import cv2
+from cv_bridge import CvBridge
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray
 from vision_msgs.msg import Detection2DArray
 from trajectory_msgs.msg import JointTrajectoryPoint
 from pynput import keyboard # Handles true key press and release
+from sensor_msgs.msg import CompressedImage
 import threading
 import math
 
@@ -20,9 +24,16 @@ class MyControlNode(Node):
             '/yolo/detections_data',
             self.detection_callback,
             10)
+        
+        self.image_sub = self.create_subscription(
+            CompressedImage,
+            '/camera/image/compressed',
+            self.image_callback,
+            10)
 
         # State Variables
         self.keys = set() # Track currently pressed keys
+        self.last_image = None
         self.velocity = [0.0, 0.0, 0.0, 0.0]
         self.auto_drive = False
         self.base_speed = 500.0
@@ -46,6 +57,10 @@ class MyControlNode(Node):
         
         self.get_logger().info("Node started. Mode: MANUAL. Press 'q' to toggle Auto.")
         self.get_logger().info("WASD to move (stops on release).")
+    
+    def image_callback(self, msg):
+        self.last_image = msg
+        pass
 
     def on_press(self, key):
         try:
@@ -60,6 +75,12 @@ class MyControlNode(Node):
             self.auto_drive = not self.auto_drive
             mode = "AUTO" if self.auto_drive else "MANUAL"
             self.get_logger().info(f"Mode switched to: {mode}")
+        if k == 'b': # Save image to disk for debugging
+            if self.last_image:
+                filename = f"/ros2_ws/my_car/image/image_{self.get_clock().now().to_msg().sec}.jpg"
+                cv_image = CvBridge().compressed_imgmsg_to_cv2(self.last_image, desired_encoding='bgr8')
+                cv2.imwrite(filename, cv_image)
+                self.get_logger().info(f"Saved image to: {filename}")
             
 
     def on_release(self, key):
