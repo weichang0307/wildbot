@@ -14,7 +14,7 @@ class MyYoloNode(Node):
         # 1. Image Subscription
         self.subscription = self.create_subscription(
             CompressedImage,
-            '/camera/image/compressed',
+            '/camera/color/image_raw/compressed',
             self.image_callback,
             10)
             

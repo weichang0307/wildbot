@@ -1,6 +1,8 @@
 # Use the official ROS 2 Humble image
 FROM ros:humble-ros-base
 
+ARG GPU_TYPE=nvidia
+
 # Set the working directory inside the container
 WORKDIR /ros2_ws
 
@@ -13,13 +15,16 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     ros-humble-cv-bridge \
     ros-humble-vision-msgs \
+    ros-humble-rosbag2-storage-mcap \
     libgl1 \
-    && rm -rf /var/lib/apt/lists/* \
-    sudo apt-get update \
-    sudo apt-get install ros-humble-rosbag2-storage-mcap
+    && rm -rf /var/lib/apt/lists/*
 
 
-RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.2
+RUN if [ "$GPU_TYPE" = "amd" ]; then \
+        pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.2; \
+    else \
+        pip3 install torch torchvision torchaudio; \
+    fi
 
 # Copy the requirements file into the container
 COPY requirements.txt /ros2_ws/
