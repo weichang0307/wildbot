@@ -13,8 +13,8 @@ class MyYoloNode(Node):
         
         # 1. Image Subscription
         self.subscription = self.create_subscription(
-            CompressedImage,
-            '/camera/color/image_raw/compressed',
+            Image,
+            '/camera/color/image_raw',
             self.image_callback,
             10)
             
@@ -41,7 +41,7 @@ class MyYoloNode(Node):
 
     def image_callback(self, msg):
         # Convert the ROS Image message to an OpenCV image
-        cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         
         # Run the YOLO model on the image silently
         results = self.model(cv_image, verbose=False)

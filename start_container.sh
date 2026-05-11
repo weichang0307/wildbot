@@ -8,6 +8,7 @@ if command -v nvidia-smi &> /dev/null; then
       --runtime=nvidia \
       --gpus all \
       --network host \
+      --ipc=host \
       --shm-size=8g \
       -e DISPLAY=$DISPLAY \
       -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
@@ -25,6 +26,7 @@ elif [ -c /dev/kfd ]; then
       --security-opt seccomp=unconfined \
       --shm-size=8g \
       --network host \
+      --ipc=host \
       --env-file .env \
       -e DISPLAY=$DISPLAY \
       -e HSA_OVERRIDE_GFX_VERSION=11.0.0 \
@@ -34,5 +36,5 @@ elif [ -c /dev/kfd ]; then
 
 else
     echo "No supported GPU found. Running in CPU mode."
-    sudo docker run -it --rm --network host -v $(pwd):/ros2_ws my-car-env
+    sudo docker run -it --rm --network host --ipc=host -v $(pwd):/ros2_ws my-car-env
 fi

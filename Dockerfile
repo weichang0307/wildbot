@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     ros-humble-cv-bridge \
     ros-humble-vision-msgs \
     ros-humble-rosbag2-storage-mcap \
+    ros-humble-foxglove-bridge \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -35,6 +36,7 @@ RUN pip3 install -r requirements.txt
 # Automatically source the ROS 2 environment variables
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 RUN echo "source /ros2_ws/install/setup.bash" >> ~/.bashrc
+RUN echo "source /ros2_ws/setup.bash" >> ~/.bashrc
 
 # Set the default command
 CMD ["bash"]

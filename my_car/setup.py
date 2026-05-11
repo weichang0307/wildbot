@@ -10,6 +10,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/urdf', ['my_car/wildbot.urdf']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -25,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'run = my_car.main:main',
+            'urdf_publisher = my_car.urdf_publisher_node:main',
         ],
     },
 )

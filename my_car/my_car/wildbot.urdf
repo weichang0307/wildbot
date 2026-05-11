@@ -1,0 +1,306 @@
+<?xml version="1.0"?>
+<robot name="wildbot">
+
+  <!-- ================= BASE LINK ================= -->
+  <!-- Body size: 310x270x110 mm -->
+  <link name="car_base">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.01"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <!-- ================= SAFE BOX ================= -->
+  <!-- Safe box size: 410x350x100 mm -->
+  <link name="safe_box">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="7.80"/>
+      <inertia ixx="0.060" ixy="0" ixz="0" iyy="0.080" iyz="0" izz="0.100"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0.170 0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.410 0.010 0.010"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.4 0.8 1.0"/>
+      </material>
+    </visual>
+    <visual>
+      <origin xyz="0 -0.170 0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.410 0.010 0.010"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0 0.170 -0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.410 0.010 0.010"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0 -0.170 -0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.410 0.010 0.010"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0.200 0 0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.010 0.350 0.010"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.200 0 0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.010 0.350 0.010"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0.200 0 -0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.010 0.350 0.010"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.200 0 -0.045" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.010 0.350 0.010"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0.200 0.170 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.010 0.010 0.100"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="0.200 -0.170 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.010 0.010 0.100"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.200 0.170 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.010 0.010 0.100"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <visual>
+      <origin xyz="-0.200 -0.170 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.010 0.010 0.100"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.410 0.350 0.100"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="car_base_to_safe_box" type="fixed">
+    <parent link="car_base"/>
+    <child link="safe_box"/>
+    <!-- Position: 210, 175, 100 -->
+    <origin xyz="0.0 0.0 0.100" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ================= WHEELS ================= -->
+  <!-- Wheel radius: 50mm, thickness: 46mm -->
+  <material name="black">
+    <color rgba="0.1 0.1 0.1 1.0"/>
+  </material>
+
+  <!-- Front Left Wheel -->
+  <link name="fl_wheel">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.45"/>
+      <inertia ixx="0.00036" ixy="0" ixz="0" iyy="0.00056" iyz="0" izz="0.00036"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <sphere radius="0.050"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <sphere radius="0.050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="safe_box_to_fl_wheel" type="continuous">
+    <parent link="safe_box"/>
+    <child link="fl_wheel"/>
+    <!-- Position: 145, 138, -50 -->
+    <origin xyz="0.145 0.138 -0.050" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Front Right Wheel -->
+  <link name="fr_wheel">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.45"/>
+      <inertia ixx="0.00036" ixy="0" ixz="0" iyy="0.00056" iyz="0" izz="0.00036"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <sphere radius="0.050"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <sphere radius="0.050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="safe_box_to_fr_wheel" type="continuous">
+    <parent link="safe_box"/>
+    <child link="fr_wheel"/>
+    <!-- Position: 145, -138, -50 -->
+    <origin xyz="0.145 -0.138 -0.050" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Rear Left Wheel -->
+  <link name="rl_wheel">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.45"/>
+      <inertia ixx="0.00036" ixy="0" ixz="0" iyy="0.00056" iyz="0" izz="0.00036"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <sphere radius="0.050"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <sphere radius="0.050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="safe_box_to_rl_wheel" type="continuous">
+    <parent link="safe_box"/>
+    <child link="rl_wheel"/>
+    <!-- Position: -145, 138, -50 -->
+    <origin xyz="-0.145 0.138 -0.050" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- Rear Right Wheel -->
+  <link name="rr_wheel">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.45"/>
+      <inertia ixx="0.00036" ixy="0" ixz="0" iyy="0.00056" iyz="0" izz="0.00036"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <sphere radius="0.050"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <sphere radius="0.050"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="safe_box_to_rr_wheel" type="continuous">
+    <parent link="safe_box"/>
+    <child link="rr_wheel"/>
+    <!-- Position: -145, -138, -50 -->
+    <origin xyz="-0.145 -0.138 -0.050" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+  </joint>
+
+  <!-- ================= SENSORS ================= -->
+  <!-- Camera -->
+  <link name="camera">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.02"/>
+      <inertia ixx="1.9e-5" ixy="0" ixz="0" iyy="5e-6" iyz="0" izz="1.9e-5"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="0.02 0.05 0.02"/>
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0.0 0.0 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.02 0.05 0.02"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="safe_box_to_camera" type="fixed">
+    <parent link="safe_box"/>
+    <child link="camera"/>
+    <!-- Position: 105, 0, 155 -->
+    <origin xyz="0.105 0.0 0.155" rpy="-1.89 0.0 -1.57"/>
+  </joint>
+
+  <!-- Lidar -->
+  <link name="lidar">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.02"/>
+      <inertia ixx="2.2e-5" ixy="0" ixz="0" iyy="2.2e-5" iyz="0" izz="5.4e-5"/>
+    </inertial>
+    <visual>
+      <geometry>
+        <cylinder radius="0.03" length="0.04"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.03" length="0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="safe_box_to_lidar" type="fixed">
+    <parent link="safe_box"/>
+    <child link="lidar"/>
+    <!-- Position: 50, 0, 190 -->
+    <origin xyz="0.050 0.0 0.190" rpy="0 0 0"/>
+  </joint>
+
+</robot>

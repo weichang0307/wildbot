@@ -1,0 +1,2 @@
+export FASTRTPS_DEFAULT_PROFILES_FILE=$(pwd)/fastdds.xml
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
