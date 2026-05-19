@@ -1,0 +1,32 @@
+{
+    "ROS2.distro": "humble",
+    "python.autoComplete.extraPaths": [
+        "/home/samuel/THX-Driverless-Bear/build/vision_cone_detector",
+        "/home/samuel/THX-Driverless-Bear/install/vision_cone_detector/lib/python3.10/site-packages",
+        "/home/samuel/THX-Driverless-Bear/build/simulation",
+        "/home/samuel/THX-Driverless-Bear/install/simulation/lib/python3.10/site-packages",
+        "/home/samuel/THX-Driverless-Bear/install/rslidar_msg/local/lib/python3.10/dist-packages",
+        "/home/samuel/THX-Driverless-Bear/build/mpc",
+        "/home/samuel/THX-Driverless-Bear/install/mpc/lib/python3.10/site-packages",
+        "/home/samuel/THX-Driverless-Bear/install/fsd_common_msgs/local/lib/python3.10/dist-packages",
+        "/home/samuel/THX-Driverless-Bear/build/bayes_race",
+        "/home/samuel/THX-Driverless-Bear/install/bayes_race/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/samuel/THX-Driverless-Bear/build/vision_cone_detector",
+        "/home/samuel/THX-Driverless-Bear/install/vision_cone_detector/lib/python3.10/site-packages",
+        "/home/samuel/THX-Driverless-Bear/build/simulation",
+        "/home/samuel/THX-Driverless-Bear/install/simulation/lib/python3.10/site-packages",
+        "/home/samuel/THX-Driverless-Bear/install/rslidar_msg/local/lib/python3.10/dist-packages",
+        "/home/samuel/THX-Driverless-Bear/build/mpc",
+        "/home/samuel/THX-Driverless-Bear/install/mpc/lib/python3.10/site-packages",
+        "/home/samuel/THX-Driverless-Bear/install/fsd_common_msgs/local/lib/python3.10/dist-packages",
+        "/home/samuel/THX-Driverless-Bear/build/bayes_race",
+        "/home/samuel/THX-Driverless-Bear/install/bayes_race/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "github.copilot.chat.codeGeneration.useInstructionFiles": true
+}

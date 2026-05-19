@@ -9,3 +9,6 @@ seaborn
 jupyterlab
 notebook
 pynput
+shapely
+trimesh
+rtree

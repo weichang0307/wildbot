@@ -1,0 +1,26 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/samuel/THX-Driverless-Bear/install/usb_cam/include/**",
+        "/home/samuel/THX-Driverless-Bear/install/rslidar_msg/include/**",
+        "/home/samuel/THX-Driverless-Bear/install/mapping/include/**",
+        "/home/samuel/THX-Driverless-Bear/install/kvaser_interface/include/**",
+        "/home/samuel/THX-Driverless-Bear/install/ground_segmentation/include/**",
+        "/home/samuel/THX-Driverless-Bear/install/fsd_common_msgs/include/**",
+        "/opt/ros/humble/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ros2",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++17"
+    }
+  ],
+  "version": 4
+}
