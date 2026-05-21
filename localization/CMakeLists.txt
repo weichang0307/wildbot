@@ -3,9 +3,11 @@ project(localization)
 
 find_package(ament_cmake REQUIRED)
 
+install(PROGRAMS scripts/lidar_localizer.py DESTINATION lib/${PROJECT_NAME})
+
 install(DIRECTORY
   launch
-  config
+  scripts
   DESTINATION share/${PROJECT_NAME}
 )
 

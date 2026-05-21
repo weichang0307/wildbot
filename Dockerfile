@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y \
     ros-humble-vision-msgs \
     ros-humble-rosbag2-storage-mcap \
     ros-humble-foxglove-bridge \
-    ros-humble-slam-toolbox \
     ros-humble-navigation2 \
     ros-humble-nav2-bringup \
     ros-humble-nav2-map-server \
@@ -41,10 +40,6 @@ RUN pip3 install -r requirements.txt
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 RUN echo "source /ros2_ws/install/setup.bash" >> ~/.bashrc
 RUN echo "source /ros2_ws/setup.bash" >> ~/.bashrc
-
-# Clone RF2O laser odometry late so Docker can reuse the expensive setup layers.
-RUN mkdir -p /ros2_ws/src && \
-    git clone -b humble-devel https://github.com/Adlink-ROS/rf2o_laser_odometry.git /ros2_ws/src/rf2o_laser_odometry
 
 # Set the default command
 CMD ["bash"]

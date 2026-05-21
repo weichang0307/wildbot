@@ -4,44 +4,21 @@ from launch import LaunchDescription
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    pkg_path = get_package_share_directory('scan_map')
-    rf2o_config = os.path.join(pkg_path, 'config', 'rf2o_odometry.yaml')
-    loc_config = os.path.join(pkg_path, 'config', 'localization.yaml')
-
-    lifecycle_nodes = ['map_server', 'amcl']
+    map_path = os.path.join(
+        get_package_share_directory('scan_map'), 'maps', 'lidar_map.pgm')
 
     return LaunchDescription([
-        # 1. Odometry
         Node(
-            package='rf2o_laser_odometry',
-            executable='rf2o_laser_odometry_node',
-            name='rf2o_laser_odometry',
-            parameters=[rf2o_config]
-        ),
-        
-        # 2. Map Server
-        Node(
-            package='nav2_map_server',
-            executable='map_server',
-            name='map_server',
-            parameters=[loc_config]
-        ),
-
-        # 3. AMCL
-        Node(
-            package='nav2_amcl',
-            executable='amcl',
-            name='amcl',
-            parameters=[loc_config]
-        ),
-
-        # 4. Lifecycle Manager (Crucial for Nav2 nodes)
-        Node(
-            package='nav2_lifecycle_manager',
-            executable='lifecycle_manager',
-            name='lifecycle_manager_localization',
-            parameters=[{'use_sim_time': False},
-                        {'autostart': True},
-                        {'node_names': lifecycle_nodes}]
+            package='localization',
+            executable='lidar_localizer.py',
+            name='lidar_localizer',
+            output='screen',
+            parameters=[{
+                'scan_topic': '/scan',
+                'base_frame': 'car_base',
+                'map_frame':  'map',
+                'field_size': 4.0,
+                'map_path':   map_path,
+            }]
         )
     ])

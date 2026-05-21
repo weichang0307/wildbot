@@ -64,8 +64,9 @@ def main():
     }
     
     heights = {
-        "Base": 0.0,
-        "Lidar": 0.3
+        "Base":       0.0,   # physical footprint — used for planner_map
+        "Lidar Scan": 0.3,   # scanning phase lidar height — used for map fitting
+        "Lidar Run":  0.42,  # competition run lidar height — used for lidar_map
     }
     
     results = []
@@ -86,7 +87,7 @@ def main():
     
     for title, img, _ in results:
         # Formats "Bridge - Base (0.0m)" into "bridge_base.png"
-        filename = title.split(' (')[0].lower().replace(' - ', '_') + ".png"
+        filename = title.split(' (')[0].lower().replace(' - ', '_').replace(' ', '_') + ".png"
         filepath = os.path.join(out_dir, filename)
         cv2.imwrite(filepath, img)
         print(f"Exported grid map: {filepath}")
