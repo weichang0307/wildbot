@@ -41,15 +41,5 @@ RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 RUN echo "source /ros2_ws/install/setup.bash" >> ~/.bashrc
 RUN echo "source /ros2_ws/setup.bash" >> ~/.bashrc
 
-# Clone and build RF2O laser odometry outside /ros2_ws so the host volume mount
-# does not overwrite it at runtime.
-RUN git clone -b humble-devel https://github.com/Adlink-ROS/rf2o_laser_odometry.git /opt/rf2o_laser_odometry && \
-    mkdir -p /opt/rf2o_ws/src && \
-    ln -s /opt/rf2o_laser_odometry /opt/rf2o_ws/src/rf2o_laser_odometry && \
-    bash -c "source /opt/ros/humble/setup.bash && \
-             cd /opt/rf2o_ws && \
-             colcon build --cmake-args -DBoost_NO_BOOST_CMAKE=ON" && \
-    echo "source /opt/rf2o_ws/install/setup.bash" >> /root/.bashrc
-
 # Set the default command
 CMD ["bash"]
