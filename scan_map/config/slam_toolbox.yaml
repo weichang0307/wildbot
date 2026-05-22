@@ -1,5 +1,6 @@
 slam_toolbox:
   ros__parameters:
+    use_sim_time: false
     odom_frame: odom
     map_frame: map
     base_frame: car_base
@@ -7,3 +8,6 @@ slam_toolbox:
     mode: mapping
     map_update_interval: 1.0
     resolution: 0.005
+    # Force Reliable QoS matching Isaac Sim
+    # scan_queue_size: 10
+    # qos_reliability_policy: reliable

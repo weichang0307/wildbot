@@ -4,6 +4,7 @@
 if command -v nvidia-smi &> /dev/null; then
     echo "NVIDIA GPU detected. Launching with NVIDIA Container Toolkit..."
     sudo docker run -it \
+      --name wildbot \
       --rm \
       --runtime=nvidia \
       --gpus all \
@@ -19,6 +20,7 @@ if command -v nvidia-smi &> /dev/null; then
 elif [ -c /dev/kfd ]; then
     echo "AMD GPU detected. Launching with ROCm/KFD..."
     sudo docker run -it \
+      --name wildbot \
       --device=/dev/kfd \
       --device=/dev/dri \
       --group-add=video \

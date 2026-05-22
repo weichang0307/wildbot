@@ -27,6 +27,10 @@ setup(
         'console_scripts': [
             'run = my_car.main:main',
             'urdf_publisher = my_car.urdf_publisher_node:main',
+            'map_publisher = my_car.map_publisher_node:main',
+            'astar_planner = my_car.astar_planner_node:main',
+            'rrt_star_planner = my_car.rrt_star_planner_node:main',
+            'bear_map_node = my_car.bear_map_node:main',
         ],
     },
 )

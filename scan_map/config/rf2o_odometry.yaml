@@ -1,8 +1,12 @@
 rf2o_laser_odometry:
   ros__parameters:
+    use_sim_time: true
     laser_scan_topic: /scan
     odom_topic: /odom
     publish_tf: true
     base_frame_id: car_base
     odom_frame_id: odom
     freq: 20.0
+    # Add or override the QoS parameter if rf2o exposes it:
+    # qos_history_policy: keep_last
+    # qos_reliability_policy: reliable
