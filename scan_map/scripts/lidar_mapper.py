@@ -22,19 +22,45 @@ from tf2_ros import TransformBroadcaster
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-_PLATE_OFFSET   = 0.3     # m — starting distance from corner
 _MAX_ICP_ITER   = 25
 _ICP_TOL        = 1e-4
 _VOXEL_SIZE     = 0.05    # m — keep map dense enough for ICP to find correspondences
 _MAX_CORR_DST   = 0.15    # m — max distance to accept point pair
-_MIN_INLIER_RATIO = 0.35  # reject ICP result if fewer than this fraction matched
+_MIN_INLIER_RATIO = 0.4   # reject ICP result if fewer than this fraction matched
 _MAX_STEP_TRANS = 0.10    # m  per scan — physical speed cap (~1 m/s @ 10 Hz)
 _MAX_STEP_ROT   = 0.15    # rad per scan — ~8.6°
-_KF_TRANS       = 0.30    # m — keyframe spacing (drift defense)
-_KF_ROT         = 0.30    # rad — keyframe rotation spacing
-_LP_ALPHA       = 0.4     # ICP trust factor (lower = smoother, higher = more responsive)
+_KF_TRANS       = 0.5     # m — keyframe spacing (drift defense)
+_KF_ROT         = 0.5     # rad — keyframe rotation spacing
 _DEADZONE_TRANS = 0.01    # m — micro-jitter floor
 _DEADZONE_ROT   = 0.0087  # rad — 0.5°
+_TF_SMOOTH      = 0.5     # EMA factor for TF-only pose (1.0 = no smoothing, 0.0 = frozen)
+
+
+def _estimate_initial_pose(pts, field_size):
+    """Place the robot inside an axis-aligned rectangular arena from a single scan.
+
+    Measures wall distance in four cardinal directions (robot frame: +x forward,
+    +y left). For a rectangular arena, dist-to-(-x-wall) is the robot's x coord
+    relative to the back wall. Yaw is left at 0 since the arena is assumed
+    aligned with the robot's starting orientation; map_processor.py snaps the
+    final map back to canonical axes via wall template matching.
+    """
+    angles = np.arctan2(pts[:, 1], pts[:, 0])
+    ranges = np.hypot(pts[:, 0], pts[:, 1])
+
+    def wall_dist(target, tol=0.15):
+        diff = np.abs(np.arctan2(np.sin(angles - target), np.cos(angles - target)))
+        mask = diff < tol
+        return float(np.median(ranges[mask])) if np.sum(mask) >= 3 else None
+
+    d_back  = wall_dist(math.pi)
+    d_front = wall_dist(0.0)
+    d_right = wall_dist(-math.pi / 2)
+    d_left  = wall_dist(math.pi / 2)
+
+    rx = d_back  if d_back  is not None else (field_size - d_front if d_front is not None else field_size / 2)
+    ry = d_right if d_right is not None else (field_size - d_left  if d_left  is not None else field_size / 2)
+    return rx, ry, 0.0
 
 
 def _voxel_downsample(points, voxel_size=_VOXEL_SIZE):
@@ -135,9 +161,10 @@ class LidarMapper(Node):
         self.hits    = np.zeros((sz, sz), np.int32)   
         self.visited = np.zeros((sz, sz), np.int32)   
 
-        self.pose           = (_PLATE_OFFSET, _PLATE_OFFSET, 0.0) 
-        self.global_map_pts = None   
-        self.keyframe_pose  = self.pose
+        self.pose           = None  # estimated from first scan
+        self.tf_pose        = None  # smoothed copy for TF broadcast only
+        self.global_map_pts = None
+        self.keyframe_pose  = None
         
         self._tf = TransformBroadcaster(self)
 
@@ -165,12 +192,16 @@ class LidarMapper(Node):
             return
 
         if self.global_map_pts is None:
+            self.pose = _estimate_initial_pose(pts, self.field)
+            self.tf_pose = self.pose
+            self.keyframe_pose = self.pose
             rx, ry, theta = self.pose
             cos_t, sin_t = math.cos(theta), math.sin(theta)
             global_pts = np.copy(pts)
             global_pts[:,0] = cos_t*pts[:,0] - sin_t*pts[:,1] + rx
             global_pts[:,1] = sin_t*pts[:,0] + cos_t*pts[:,1] + ry
             self.global_map_pts = _voxel_downsample(global_pts)
+            self.get_logger().info(f'Initial pose from scan: x={rx:.2f} y={ry:.2f} θ={theta:.2f}')
             return
 
         # 1. Get raw ICP suggestion
@@ -188,9 +219,9 @@ class LidarMapper(Node):
         if abs(dtheta) < _DEADZONE_ROT:
             dtheta = 0.0
 
-        final_rx = old_rx + dx * _LP_ALPHA
-        final_ry = old_ry + dy * _LP_ALPHA
-        final_theta = old_theta + dtheta * _LP_ALPHA
+        final_rx = old_rx + dx
+        final_ry = old_ry + dy
+        final_theta = old_theta + dtheta
 
         self.pose = (final_rx, final_ry, final_theta)
 
@@ -210,7 +241,16 @@ class LidarMapper(Node):
             self.keyframe_pose = self.pose
 
         self._update_grid(pts, final_rx, final_ry, final_theta)
-        self._broadcast_tf(final_rx, final_ry, final_theta, msg.header.stamp)
+
+        # Smooth pose for TF only — ICP uses raw self.pose, so this doesn't add lag to mapping
+        tx, ty, tth = self.tf_pose
+        dth = math.atan2(math.sin(final_theta - tth), math.cos(final_theta - tth))
+        self.tf_pose = (
+            tx  + _TF_SMOOTH * (final_rx - tx),
+            ty  + _TF_SMOOTH * (final_ry - ty),
+            tth + _TF_SMOOTH * dth,
+        )
+        self._broadcast_tf(*self.tf_pose, msg.header.stamp)
 
     # ── grid update & tf ──────────────────────────────────────────────────────
     
@@ -283,13 +323,15 @@ class LidarMapper(Node):
         return share
 
     def _save(self):
+        # Use print, not get_logger — during Ctrl+C shutdown the rosout publisher
+        # is already invalid and logger calls emit "publisher's context is invalid".
         maps_dir = os.path.join(self._source_pkg_dir(), 'maps')
         os.makedirs(maps_dir, exist_ok=True)
 
         pgm = np.full((self.size, self.size), 205, np.uint8)
         pgm[self.visited > 0] = 255
         pgm[self.hits    > 0] = 0
-        pgm = np.flipud(pgm)   
+        pgm = np.flipud(pgm)
 
         pgm_path = os.path.join(maps_dir, 'raw_map.pgm')
         with open(pgm_path, 'wb') as f:
@@ -301,22 +343,20 @@ class LidarMapper(Node):
                        'origin': [-self.margin, -self.margin, 0.0],
                        'occupied_thresh': 0.65, 'free_thresh': 0.25, 'negate': 0}, f)
 
-        # Print loudly so it's easy to find in the terminal after Ctrl+C
-        self.get_logger().info('\n' + '='*50)
-        self.get_logger().info(f'MAP SAVED SUCCESSFULLY TO:')
-        self.get_logger().info(f'{pgm_path}')
-        self.get_logger().info('='*50 + '\n')
+        print('\n' + '='*50, flush=True)
+        print(f'MAP SAVED SUCCESSFULLY TO: {pgm_path}', flush=True)
+        print('='*50 + '\n', flush=True)
 
     def _run_processor(self):
-        # Run the SOURCE map_processor so it sees the up-to-date templates
-        # (install/ templates can be stale until colcon build runs).
         script = os.path.join(self._source_pkg_dir(), 'scripts', 'map_processor.py')
         if not os.path.isfile(script):
             script = os.path.join(self._pkg_share(), 'scripts', 'map_processor.py')
-        self.get_logger().info(f'Running map_processor.py from {script}')
+        print(f'Running map_processor.py from {script}', flush=True)
         result = subprocess.run([sys.executable, script])
         if result.returncode != 0:
-            self.get_logger().error('map_processor.py failed')
+            print(f'map_processor.py failed (exit {result.returncode})', flush=True)
+        else:
+            print('map_processor.py completed', flush=True)
 
     def _save_cb(self, req, resp):
         self._save()
@@ -328,18 +368,36 @@ class LidarMapper(Node):
 def main(args=None):
     rclpy.init(args=args)
     mapper = LidarMapper()
-    
-    # Graceful Shutdown Block
+
     try:
         rclpy.spin(mapper)
     except KeyboardInterrupt:
-        mapper.get_logger().info('Ctrl+C detected. Shutting down and saving map...')
-    finally:
-        # Guarantee saving happens before the node is destroyed
+        pass
+
+    # Save+process AFTER spin exits but BEFORE shutdown — use plain print since
+    # rosout is unreliable here. Wrap each step so a failure in one doesn't skip
+    # the others.
+    print('\n[lidar_mapper] Ctrl+C detected. Saving map...', flush=True)
+    try:
         mapper._save()
+    except Exception as e:
+        print(f'[lidar_mapper] save failed: {e}', flush=True)
+
+    try:
         mapper._run_processor()
+    except Exception as e:
+        print(f'[lidar_mapper] run_processor failed: {e}', flush=True)
+
+    try:
         mapper.destroy_node()
-        rclpy.shutdown()
+    except Exception:
+        pass
+    # try_shutdown is the safe variant — silently noops if already shut down by
+    # rclpy's SIGINT handler.
+    try:
+        rclpy.try_shutdown()
+    except Exception:
+        pass
 
 if __name__ == '__main__':
     main()

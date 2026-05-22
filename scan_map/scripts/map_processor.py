@@ -15,12 +15,19 @@ FIELD_SIZE = 4.0
 
 
 def load_scaled_template(filename, target_res):
-    """Load a PNG template and resize it to match target_res."""
+    """Load a PNG template and resize it to match target_res.
+
+    Returns None for empty/invisible templates (e.g. bridge_lidar_run.png — bridge
+    sits above the scan plane, so its run-height cross-section is blank).
+    """
     img = cv2.imread(os.path.join(TPL_DIR, filename), cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise FileNotFoundError(f"Missing template: {filename}")
+    if img.shape[0] == 0 or img.shape[1] == 0 or int(np.max(img)) == 0:
+        return None
     scale = TPL_RES / target_res
-    w, h  = int(img.shape[1] * scale), int(img.shape[0] * scale)
+    w = max(1, int(round(img.shape[1] * scale)))
+    h = max(1, int(round(img.shape[0] * scale)))
     return cv2.resize(img, (w, h), interpolation=cv2.INTER_NEAREST)
 
 
@@ -48,6 +55,8 @@ def fit_template(map_img, template, angles):
 
 def draw_on_map(canvas, template, cx, cy, yaw):
     """Stamp a rotated template (black=obstacle) onto canvas."""
+    if template is None:
+        return
     h, w = template.shape
     M       = cv2.getRotationMatrix2D((w//2, h//2), yaw, 1.0)
     rotated = cv2.warpAffine(template, M, (w, h))
