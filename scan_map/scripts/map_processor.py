@@ -40,8 +40,9 @@ def create_wall_template(size=FIELD_SIZE, thickness=0.1, res=FINAL_RES):
 
 
 def fit_template(map_img, template, angles):
-    """Slide and rotate template to find highest correlation. Returns (cx, cy, yaw)."""
-    best_val, best_loc, best_angle = -1, (0, 0), 0
+    """Slide and rotate template to find highest correlation.
+    Returns (cx, cy, yaw, score)."""
+    best_val, best_loc, best_angle = -1.0, (0, 0), 0
     h, w = template.shape
     for angle in angles:
         M       = cv2.getRotationMatrix2D((w//2, h//2), angle, 1.0)
@@ -50,7 +51,7 @@ def fit_template(map_img, template, angles):
         _, max_val, _, max_loc = cv2.minMaxLoc(res)
         if max_val > best_val:
             best_val, best_loc, best_angle = max_val, max_loc, angle
-    return best_loc[0] + w//2, best_loc[1] + h//2, best_angle
+    return best_loc[0] + w//2, best_loc[1] + h//2, best_angle, best_val
 
 
 def draw_on_map(canvas, template, cx, cy, yaw):
@@ -82,7 +83,8 @@ def main():
 
     # 1. Fit wall boundary in the raw (possibly tilted) map to find arena yaw + center
     wall_tmp = create_wall_template()
-    w_cx, w_cy, w_yaw = fit_template(binary_map, wall_tmp, range(0, 90, 1))
+    w_cx, w_cy, w_yaw, w_score = fit_template(binary_map, wall_tmp, range(0, 90, 1))
+    print(f'[map_processor] Wall fit: center=({w_cx},{w_cy}) yaw={w_yaw}° score={w_score:.3f}')
 
     # 2. De-rotate the binary map so the arena is axis-aligned. Subsequent
     #    object matching happens in canonical coords — origin computation becomes
@@ -121,17 +123,24 @@ def main():
             continue
 
         # Match in the axis-aligned map
-        cx, cy, oyaw = fit_template(search_map, scan_tmp, angles)
+        cx, cy, oyaw, score = fit_template(search_map, scan_tmp, angles)
+        print(f'[map_processor] {name}: center=({cx},{cy}) yaw={oyaw}° score={score:.3f}')
+        if score < 0.30:
+            print(f'[map_processor] {name}: score below 0.30, skipping (likely not in map)')
+            continue
 
-        # Mask a generous region — the dilated obstacle imprint is much larger
-        # than the scaled-down template, so a tight mask leaves enough signal
-        # for the next iteration to lock onto the same blob.
+        # Mask the matched footprint plus a small buffer for the 5×5 dilation.
+        # Using template half-width + a few pixels rather than an inflated radius
+        # avoids erasing nearby objects (e.g. a big bridge mask used to wipe out
+        # adjacent pyramids).
         sh, sw = scan_tmp.shape
-        radius = int(max(sh, sw) * 1.5) + 5
-        mx1 = max(0, cx - radius)
-        mx2 = min(search_map.shape[1], cx + radius)
-        my1 = max(0, cy - radius)
-        my2 = min(search_map.shape[0], cy + radius)
+        buf = 6
+        rx_h = sw // 2 + buf
+        ry_h = sh // 2 + buf
+        mx1 = max(0, cx - rx_h)
+        mx2 = min(search_map.shape[1], cx + rx_h)
+        my1 = max(0, cy - ry_h)
+        my2 = min(search_map.shape[0], cy + ry_h)
         search_map[my1:my2, mx1:mx2] = 0
 
         # Pixel centre → metric (now in arena-aligned coords; no yaw correction needed)

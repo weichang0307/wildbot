@@ -281,10 +281,15 @@ class LidarMapper(Node):
             self.global_map_pts = _voxel_downsample(combined)
             self.keyframe_pose = self.pose
 
-        # Smoothed copy of pose for visualization (TF + grid). ICP next frame
-        # still consumes the raw self.pose for accurate alignment, so this
-        # smoothing doesn't introduce drift. Using the same pose for grid and TF
-        # keeps scan visualization and gray map overlaid even during motion.
+        # Grid uses the raw pose — smoothing here causes wall smearing during
+        # rotation because the same scan gets stamped at slightly different
+        # angles across frames as the EMA catches up.
+        self._update_grid(pts, final_rx, final_ry, final_theta)
+
+        # TF uses a separately smoothed pose for visual stability only. ICP and
+        # the grid are unaffected. During motion this introduces a small,
+        # transient scan-vs-map overlay lag (~2 frames), which is the right
+        # tradeoff against jitter at rest.
         tx, ty, tth = self.tf_pose
         dth = math.atan2(math.sin(final_theta - tth), math.cos(final_theta - tth))
         self.tf_pose = (
@@ -292,7 +297,6 @@ class LidarMapper(Node):
             ty  + _TF_SMOOTH * (final_ry - ty),
             tth + _TF_SMOOTH * dth,
         )
-        self._update_grid(pts, *self.tf_pose)
         self._broadcast_tf(*self.tf_pose, msg.header.stamp)
 
     # ── grid update & tf ──────────────────────────────────────────────────────
