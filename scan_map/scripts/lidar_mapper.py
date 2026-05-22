@@ -147,7 +147,7 @@ class LidarMapper(Node):
         super().__init__('lidar_mapper')
         for name, val in [('scan_topic', '/scan'), ('base_frame', 'car_base'),
                           ('map_frame',  'map'),   ('field_size', 4.0),
-                          ('resolution', 0.01),   ('margin',     0.1)]:
+                          ('resolution', 0.01),   ('margin',     2.0)]:
             self.declare_parameter(name, val)
 
         self.field      = self.get_parameter('field_size').value
