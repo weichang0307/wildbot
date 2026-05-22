@@ -1,8 +1,0 @@
-rf2o_laser_odometry:
-  ros__parameters:
-    laser_scan_topic: /scan
-    odom_topic: /odom
-    publish_tf: true
-    base_frame_id: car_base
-    odom_frame_id: odom
-    freq: 20.0

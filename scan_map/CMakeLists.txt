@@ -3,9 +3,10 @@ project(scan_map)
 
 find_package(ament_cmake REQUIRED)
 
+install(PROGRAMS scripts/lidar_mapper.py DESTINATION lib/${PROJECT_NAME})
+
 install(DIRECTORY
   launch
-  config
   scripts
   templates
   maps

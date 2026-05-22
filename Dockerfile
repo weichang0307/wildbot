@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y \
     ros-humble-vision-msgs \
     ros-humble-rosbag2-storage-mcap \
     ros-humble-foxglove-bridge \
-    ros-humble-slam-toolbox \
     ros-humble-navigation2 \
     ros-humble-nav2-bringup \
     ros-humble-nav2-map-server \
