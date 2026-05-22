@@ -80,16 +80,23 @@ def main():
     # Dilate to fill gaps from sparse angular scan intervals before template matching
     binary_map = cv2.dilate(binary_map, np.ones((5, 5), np.uint8))
 
-    # 1. Fit wall boundary to establish metric origin
+    # 1. Fit wall boundary in the raw (possibly tilted) map to find arena yaw + center
     wall_tmp = create_wall_template()
     w_cx, w_cy, w_yaw = fit_template(binary_map, wall_tmp, range(0, 90, 1))
-    origin_x = int(w_cx - (FIELD_SIZE / FINAL_RES) / 2)
-    origin_y = int(w_cy + (FIELD_SIZE / FINAL_RES) / 2)
 
-    # 2. Object list: (name, scan-height template, run-height template, base template, angles)
-    #    scan template → used for fitting (matching against the raw SLAM map)
-    #    run template  → drawn onto lidar_map  (what the lidar actually sees during the run)
-    #    base template → drawn onto planner_map (physical footprint for path planning)
+    # 2. De-rotate the binary map so the arena is axis-aligned. Subsequent
+    #    object matching happens in canonical coords — origin computation becomes
+    #    trivial and yaw output is already relative to the arena.
+    h_img, w_img = binary_map.shape
+    M_align = cv2.getRotationMatrix2D((w_cx, w_cy), w_yaw, 1.0)
+    aligned_map = cv2.warpAffine(binary_map, M_align, (w_img, h_img),
+                                 flags=cv2.INTER_NEAREST)
+
+    half = (FIELD_SIZE / FINAL_RES) / 2
+    origin_x = int(w_cx - half)
+    origin_y = int(w_cy + half)
+
+    # 3. Object list: (name, scan-height template, run-height template, base template, angles)
     objects = [
         ("Bridge",    "bridge_lidar_scan.png",   "bridge_lidar_run.png",   "bridge_base.png",   range(0, 360, 2)),
         ("Pyramid_1", "pyramid_lidar_scan.png",  "pyramid_lidar_run.png",  "pyramid_base.png",  range(0, 360, 2)),
@@ -103,28 +110,34 @@ def main():
     cv2.rectangle(lidar_canvas,   (0, 0), (pixels, pixels), 0, 2)
 
     landmarks  = []
-    search_map = binary_map.copy()   # progressively masked to prevent duplicate matches
+    search_map = aligned_map.copy()   # progressively masked to prevent duplicate matches
 
     for name, scan_png, run_png, base_png, angles in objects:
         scan_tmp = load_scaled_template(scan_png, FINAL_RES)
         run_tmp  = load_scaled_template(run_png,  FINAL_RES)
         base_tmp = load_scaled_template(base_png, FINAL_RES)
+        if scan_tmp is None:
+            print(f'[map_processor] {name}: scan template empty, skipping')
+            continue
 
-        # Match using scan-height template (what the lidar saw while mapping)
+        # Match in the axis-aligned map
         cx, cy, oyaw = fit_template(search_map, scan_tmp, angles)
 
-        # Mask out the matched region so the next pyramid can't match here
+        # Mask a generous region — the dilated obstacle imprint is much larger
+        # than the scaled-down template, so a tight mask leaves enough signal
+        # for the next iteration to lock onto the same blob.
         sh, sw = scan_tmp.shape
-        mx1 = max(0, cx - sw//2)
-        mx2 = min(search_map.shape[1], cx + sw//2 + sw%2)
-        my1 = max(0, cy - sh//2)
-        my2 = min(search_map.shape[0], cy + sh//2 + sh%2)
+        radius = int(max(sh, sw) * 1.5) + 5
+        mx1 = max(0, cx - radius)
+        mx2 = min(search_map.shape[1], cx + radius)
+        my1 = max(0, cy - radius)
+        my2 = min(search_map.shape[0], cy + radius)
         search_map[my1:my2, mx1:mx2] = 0
 
-        # Convert pixel centre to metric coordinates (relative to wall origin)
+        # Pixel centre → metric (now in arena-aligned coords; no yaw correction needed)
         mx  = (cx - origin_x) * FINAL_RES
         my  = (origin_y - cy) * FINAL_RES
-        rel_yaw = (oyaw - w_yaw) % 360
+        rel_yaw = oyaw % 360
         landmarks.append((name, mx, my, rel_yaw))
 
         # Pixel coords within the final canvas
@@ -132,9 +145,9 @@ def main():
         px_y = pixels - int(my / FINAL_RES)
 
         # Draw run-height cross-section on lidar_map (bridge invisible at 0.42 m)
-        draw_on_map(lidar_canvas,   run_tmp,  px_x, px_y, oyaw)
+        draw_on_map(lidar_canvas,   run_tmp,  px_x, px_y, rel_yaw)
         # Draw physical footprint on planner_map
-        draw_on_map(planner_canvas, base_tmp, px_x, px_y, oyaw)
+        draw_on_map(planner_canvas, base_tmp, px_x, px_y, rel_yaw)
 
     # 3. Export
     with open(os.path.join(MAP_DIR, "landmarks.csv"), 'w', newline='') as f:

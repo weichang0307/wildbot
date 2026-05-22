@@ -18,7 +18,7 @@ from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import TransformStamped
 from std_srvs.srv import Trigger
-from tf2_ros import TransformBroadcaster
+from tf2_ros import TransformBroadcaster, Buffer, TransformListener, LookupException, ConnectivityException, ExtrapolationException
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
@@ -165,7 +165,15 @@ class LidarMapper(Node):
         self.tf_pose        = None  # smoothed copy for TF broadcast only
         self.global_map_pts = None
         self.keyframe_pose  = None
-        
+
+        # scan_frame → base_frame static transform, resolved on first scan via tf2.
+        # Needed because /scan publishes in the lidar's own frame, but ICP and the
+        # grid operate in base_frame — without this the gray map is offset from the
+        # scan visualization by the lidar mount position.
+        self.scan_to_base = None  # (dx, dy, dyaw)
+        self._tf_buffer = Buffer()
+        self._tf_listener = TransformListener(self._tf_buffer, self)
+
         self._tf = TransformBroadcaster(self)
 
         self.create_subscription(
@@ -182,12 +190,45 @@ class LidarMapper(Node):
 
     # ── scan callback ─────────────────────────────────────────────────────────
 
+    def _resolve_scan_to_base(self, scan_frame):
+        """Look up static transform scan_frame → base_frame. Returns False if
+        the TF buffer hasn't received it yet (will retry on next scan)."""
+        if scan_frame == self.base_frame:
+            self.scan_to_base = (0.0, 0.0, 0.0)
+            return True
+        try:
+            tf = self._tf_buffer.lookup_transform(
+                self.base_frame, scan_frame, rclpy.time.Time())
+        except (LookupException, ConnectivityException, ExtrapolationException):
+            return False
+        t = tf.transform.translation
+        q = tf.transform.rotation
+        # 2D yaw from quaternion (z, w)
+        yaw = math.atan2(2.0 * (q.w * q.z + q.x * q.y),
+                         1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+        self.scan_to_base = (t.x, t.y, yaw)
+        self.get_logger().info(
+            f'TF {scan_frame} → {self.base_frame}: '
+            f'dx={t.x:.3f} dy={t.y:.3f} dyaw={yaw:.3f}')
+        return True
+
     def _on_scan(self, msg):
+        if self.scan_to_base is None:
+            if not self._resolve_scan_to_base(msg.header.frame_id):
+                return  # TF not ready yet; skip this scan
+
         angles = np.linspace(msg.angle_min, msg.angle_max, len(msg.ranges))
         r      = np.array(msg.ranges, np.float64)
         ok     = np.isfinite(r) & (r > msg.range_min) & (r < msg.range_max)
-        pts    = np.column_stack([r[ok]*np.cos(angles[ok]), r[ok]*np.sin(angles[ok])])
-        
+        lpts   = np.column_stack([r[ok]*np.cos(angles[ok]), r[ok]*np.sin(angles[ok])])
+
+        # Transform from scan_frame into base_frame (apply static lidar offset)
+        sx, sy, syaw = self.scan_to_base
+        cs, ss = math.cos(syaw), math.sin(syaw)
+        pts = np.empty_like(lpts)
+        pts[:, 0] = cs * lpts[:, 0] - ss * lpts[:, 1] + sx
+        pts[:, 1] = ss * lpts[:, 0] + cs * lpts[:, 1] + sy
+
         if len(pts) < 15:
             return
 
@@ -240,9 +281,10 @@ class LidarMapper(Node):
             self.global_map_pts = _voxel_downsample(combined)
             self.keyframe_pose = self.pose
 
-        self._update_grid(pts, final_rx, final_ry, final_theta)
-
-        # Smooth pose for TF only — ICP uses raw self.pose, so this doesn't add lag to mapping
+        # Smoothed copy of pose for visualization (TF + grid). ICP next frame
+        # still consumes the raw self.pose for accurate alignment, so this
+        # smoothing doesn't introduce drift. Using the same pose for grid and TF
+        # keeps scan visualization and gray map overlaid even during motion.
         tx, ty, tth = self.tf_pose
         dth = math.atan2(math.sin(final_theta - tth), math.cos(final_theta - tth))
         self.tf_pose = (
@@ -250,6 +292,7 @@ class LidarMapper(Node):
             ty  + _TF_SMOOTH * (final_ry - ty),
             tth + _TF_SMOOTH * dth,
         )
+        self._update_grid(pts, *self.tf_pose)
         self._broadcast_tf(*self.tf_pose, msg.header.stamp)
 
     # ── grid update & tf ──────────────────────────────────────────────────────
