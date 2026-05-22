@@ -22,11 +22,19 @@ from tf2_ros import TransformBroadcaster
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
-_PLATE_OFFSET = 0.3    # m — starting distance from corner
-_MAX_ICP_ITER = 25
-_ICP_TOL      = 1e-4
-_VOXEL_SIZE   = 1.0    # m — map resolution
-_MAX_CORR_DST = 0.15   # m — max distance to accept point pair
+_PLATE_OFFSET   = 0.3     # m — starting distance from corner
+_MAX_ICP_ITER   = 25
+_ICP_TOL        = 1e-4
+_VOXEL_SIZE     = 0.05    # m — keep map dense enough for ICP to find correspondences
+_MAX_CORR_DST   = 0.15    # m — max distance to accept point pair
+_MIN_INLIER_RATIO = 0.35  # reject ICP result if fewer than this fraction matched
+_MAX_STEP_TRANS = 0.10    # m  per scan — physical speed cap (~1 m/s @ 10 Hz)
+_MAX_STEP_ROT   = 0.15    # rad per scan — ~8.6°
+_KF_TRANS       = 0.30    # m — keyframe spacing (drift defense)
+_KF_ROT         = 0.30    # rad — keyframe rotation spacing
+_LP_ALPHA       = 0.4     # ICP trust factor (lower = smoother, higher = more responsive)
+_DEADZONE_TRANS = 0.01    # m — micro-jitter floor
+_DEADZONE_ROT   = 0.0087  # rad — 0.5°
 
 
 def _voxel_downsample(points, voxel_size=_VOXEL_SIZE):
@@ -50,12 +58,15 @@ def _icp_2d_scan_to_map(local_pts, global_map, current_pose, max_iters=_MAX_ICP_
     total_t = np.zeros(2)
     tree = cKDTree(global_map)
 
+    inlier_ratio = 0.0
     for _ in range(max_iters):
         dists, nn_idx = tree.query(src_curr)
 
         valid = dists < _MAX_CORR_DST
-        if np.sum(valid) < 15:
-            break 
+        n_valid = int(np.sum(valid))
+        inlier_ratio = n_valid / len(src_curr)
+        if n_valid < 15:
+            break
 
         src_v = src_curr[valid]
         dst_v = global_map[nn_idx[valid]]
@@ -89,13 +100,17 @@ def _icp_2d_scan_to_map(local_pts, global_map, current_pose, max_iters=_MAX_ICP_
     new_theta = math.atan2(new_R[1, 0], new_R[0, 0])
     new_rx, new_ry = new_t[0], new_t[1]
 
+    # Reject low-confidence alignments — primary drift defense
+    if inlier_ratio < _MIN_INLIER_RATIO:
+        return current_pose
+
     # Velocity Clamp (Reject massive physics-breaking jumps)
     dist_jump = math.hypot(new_rx - rx, new_ry - ry)
     angle_jump = abs(math.atan2(math.sin(new_theta - theta), math.cos(new_theta - theta)))
-    
-    if dist_jump > 0.20 or angle_jump > 0.20:
-        return current_pose 
-    
+
+    if dist_jump > _MAX_STEP_TRANS or angle_jump > _MAX_STEP_ROT:
+        return current_pose
+
     return new_rx, new_ry, new_theta
 
 
@@ -167,29 +182,24 @@ class LidarMapper(Node):
         dx = raw_rx - old_rx
         dy = raw_ry - old_ry
         dtheta = math.atan2(math.sin(raw_theta - old_theta), math.cos(raw_theta - old_theta))
-        
-        # If movement is < 1cm, zero it out (stop sliding)
-        if math.hypot(dx, dy) < 0.01:
+
+        if math.hypot(dx, dy) < _DEADZONE_TRANS:
             dx, dy = 0.0, 0.0
-            
-        # If rotation is < 0.5 degrees, zero it out (stop spinning)
-        if abs(dtheta) < 0.0087:
+        if abs(dtheta) < _DEADZONE_ROT:
             dtheta = 0.0
-            
-        # 3. Apply Low-Pass Filter (Smooth intentional movement)
-        alpha = 0.6  # Trust ICP 60% per frame
-        final_rx = old_rx + dx * alpha
-        final_ry = old_ry + dy * alpha
-        final_theta = old_theta + dtheta * alpha
-        
+
+        final_rx = old_rx + dx * _LP_ALPHA
+        final_ry = old_ry + dy * _LP_ALPHA
+        final_theta = old_theta + dtheta * _LP_ALPHA
+
         self.pose = (final_rx, final_ry, final_theta)
-        
-        # 4. Map Expansion
+
+        # 4. Map Expansion — wider spacing slows drift accumulation
         kx, ky, ktheta = self.keyframe_pose
         dist_moved = math.hypot(final_rx - kx, final_ry - ky)
         angle_moved = abs(math.atan2(math.sin(final_theta - ktheta), math.cos(final_theta - ktheta)))
-        
-        if dist_moved > 0.15 or angle_moved > 0.15:
+
+        if dist_moved > _KF_TRANS or angle_moved > _KF_ROT:
             cos_t, sin_t = math.cos(final_theta), math.sin(final_theta)
             aligned_pts = np.copy(pts)
             aligned_pts[:,0] = cos_t*pts[:,0] - sin_t*pts[:,1] + final_rx
@@ -259,8 +269,21 @@ class LidarMapper(Node):
     def _pkg_share(self):
         return get_package_share_directory('scan_map')
 
+    def _source_pkg_dir(self):
+        """Resolve the source scan_map/ from the install share path.
+
+        share = <ws>/install/scan_map/share/scan_map → walk up 4 → <ws>, then <ws>/scan_map.
+        Falls back to install share if the source layout isn't found.
+        """
+        share = self._pkg_share()
+        ws_root = os.path.abspath(os.path.join(share, '..', '..', '..', '..'))
+        src = os.path.join(ws_root, 'scan_map')
+        if os.path.isdir(os.path.join(src, 'maps')) or os.path.isfile(os.path.join(src, 'package.xml')):
+            return src
+        return share
+
     def _save(self):
-        maps_dir = os.path.join(self._pkg_share(), 'maps')
+        maps_dir = os.path.join(self._source_pkg_dir(), 'maps')
         os.makedirs(maps_dir, exist_ok=True)
 
         pgm = np.full((self.size, self.size), 205, np.uint8)
@@ -285,8 +308,12 @@ class LidarMapper(Node):
         self.get_logger().info('='*50 + '\n')
 
     def _run_processor(self):
-        script = os.path.join(self._pkg_share(), 'scripts', 'map_processor.py')
-        self.get_logger().info('Running map_processor.py...')
+        # Run the SOURCE map_processor so it sees the up-to-date templates
+        # (install/ templates can be stale until colcon build runs).
+        script = os.path.join(self._source_pkg_dir(), 'scripts', 'map_processor.py')
+        if not os.path.isfile(script):
+            script = os.path.join(self._pkg_share(), 'scripts', 'map_processor.py')
+        self.get_logger().info(f'Running map_processor.py from {script}')
         result = subprocess.run([sys.executable, script])
         if result.returncode != 0:
             self.get_logger().error('map_processor.py failed')
