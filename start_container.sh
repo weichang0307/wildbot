@@ -1,4 +1,10 @@
 #!/bin/bash
+xhost +local:root
+
+if sudo docker ps -a --format '{{.Names}}' | grep -qx wildbot; then
+  echo "Removing existing wildbot container..."
+  sudo docker rm -f wildbot
+fi
 
 # Check for NVIDIA
 if command -v nvidia-smi &> /dev/null; then

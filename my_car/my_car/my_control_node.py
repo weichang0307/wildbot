@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray, String, Empty
-from sensor_msgs.msg import Range, Image, PointCloud
+from std_msgs.msg import Float32MultiArray, String, Empty, Int32
+from sensor_msgs.msg import Image, PointCloud
 from vision_msgs.msg import Detection2DArray
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from geometry_msgs.msg import TwistStamped
@@ -43,8 +43,8 @@ class MyControlNode(Node):
             self.detection_callback,
             10)
         self.ir_distance_sub = self.create_subscription(
-            Range,
-            '/ir_side/range',
+            Int32,
+            '/laser_distance_mm',
             self.ir_distance_callback,
             10)
         self.path_sub = self.create_subscription(
@@ -75,6 +75,8 @@ class MyControlNode(Node):
         self.rotate_speed = 700.0
         self.lin_vel_scale = 0.2
         self.ang_vel_scale = 0.4
+        # self.lin_vel_scale = 1.2
+        # self.ang_vel_scale = 2.0
         self.lin_vel = 0.0
         self.ang_vel = 0.0
         self.arm_speed = 5.0
@@ -132,6 +134,7 @@ class MyControlNode(Node):
 
         self.joint_angles = [joint["init"] for joint in self.joint_limits]
         self.joint_angles_physical = [joint["init"] for joint in self.joint_limits_physical]
+        self._last_arm_command_physical = None
 
         # Start the keyboard listener
         # on_press runs when key is hit, on_release runs when key is let go
@@ -156,7 +159,8 @@ class MyControlNode(Node):
         self.keys.add(k)
         if k == 'q': # Toggle Auto-Drive mode
             self.auto_drive = not self.auto_drive
-            self.state = STATE.FINDING
+            # self.state = STATE.FINDING
+            self.state = STATE.APPROACH
             mode = "AUTO" if self.auto_drive else "MANUAL"
             self.get_logger().info(f"Mode switched to: {mode}")
         elif k == 'c':
@@ -181,13 +185,14 @@ class MyControlNode(Node):
     def ir_distance_callback(self, msg):
         # if self.is_obstacle_close_in_front_on_map():
         #     print('Obstacle detected in front on map, stopping')
+        # print(f"IR Distance: {msg.data} mm")
 
 
         if not self.auto_drive:
             return
 
-        distance = msg.range
-        threshold = 0.05  # Set a threshold for obstacle avoidance
+        distance = msg.data / 1000.0
+        threshold = 0.1  # Set a threshold for obstacle avoidance
         # print(f"IR Distance: {distance:.2f} m")
 
         
@@ -217,7 +222,7 @@ class MyControlNode(Node):
                 self.publish_clamped_bear_event()
                 self.enterstate_time = now
                 self.steady_time = now
-                print(f'Bear is too close (distance={bear_distance:.2f} m), stopping approach and going back to finding')
+                print(f'Bear is too close (distance={bear_distance:.2f} m), stopping approach aqqsssssssssssssssssssssnd going back to finding')
                 return
 
             now = self.get_clock().now()
@@ -235,7 +240,7 @@ class MyControlNode(Node):
             self.ang_vel = 0.0
             self.joint_angles_physical = self.clamp_arm_pose_physical.copy()
             now = self.get_clock().now()
-            if (now - self.enterstate_time).nanoseconds > 1e9: # Wait 1 second before lifting
+            if (now - self.enterstate_time).nanoseconds > 1.2e8: # Wait 1 second before lifting
                 self.state = STATE.LIFT
                 self.enterstate_time = now
         elif self.state == STATE.LIFT:
@@ -251,7 +256,7 @@ class MyControlNode(Node):
             self.ang_vel = 0.0
             self.joint_angles_physical = self.release_arm_pose_physical.copy()
             now = self.get_clock().now()
-            if (now - self.enterstate_time).nanoseconds > 2e9: # Wait 2 seconds before going back to approach
+            if (now - self.enterstate_time).nanoseconds > 5e8: # Wait 2 seconds before going back to approach
                 self.state = STATE.FINDING
                 self.enterstate_time = now
                 self.steady_time = now
@@ -577,6 +582,7 @@ class MyControlNode(Node):
 
     def publish_wheel_speed_physical(self, lin_vel, ang_vel):
         twist_msg = TwistStamped()
+        twist_msg.header.stamp = self.get_clock().now().to_msg()
         twist_msg.header.frame_id = 'base_link'
         twist_msg.twist.linear.x = lin_vel
         twist_msg.twist.angular.z = ang_vel
@@ -589,18 +595,32 @@ class MyControlNode(Node):
     def publish_robot_arm_angle_physical(self, angles): # angle is a list of 3 joint angles in degrees
         for i, joint in enumerate(self.joint_limits_physical):
             angles[i] = max(joint["min_angle"], min(joint["max_angle"], angles[i]))
-        joint_pos_radians = [
-            math.radians(float(angles[i])) 
-            for i in range(len(angles))
-        ]
+
+        # Clamp angles to joint limits first
+        angles_clamped = [float(angles[i]) for i in range(len(angles))]
+
+        # If last command exists, compare with a small tolerance (degrees)
+        tol_deg = 0.1
+        if self._last_arm_command_physical is not None:
+            unchanged = all(
+                abs(angles_clamped[i] - self._last_arm_command_physical[i]) <= tol_deg
+                for i in range(len(angles_clamped))
+            )
+            if unchanged:
+                return
+
+        joint_pos_radians = [math.radians(angle) for angle in angles_clamped]
         joint_trajectory = JointTrajectory()
+        joint_trajectory.header.stamp = self.get_clock().now().to_msg()
         joint_trajectory.joint_names = ['arm_1_joint', 'arm_2_joint', 'gripper_joint']
         point = JointTrajectoryPoint()
         point.positions = joint_pos_radians
-        point.time_from_start.sec = 1
-        point.time_from_start.nanosec = 0
+        point.time_from_start.sec = 0
+        point.time_from_start.nanosec = 100000000
         joint_trajectory.points.append(point)
         self.arm_physical_pub.publish(joint_trajectory)
+        # Record last published angles in degrees
+        self._last_arm_command_physical = tuple(angles_clamped)
 
 
 

@@ -394,6 +394,7 @@
     <!-- Position: 170, 0, 26 -->
     <origin xyz="0.170 0.0 0.026" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10.0" velocity="1.0"/>
   </joint>
 
   <!-- Arm Link 2 (Length: 65mm) -->
@@ -424,6 +425,7 @@
     <!-- Position: 80, 0, 0 -->
     <origin xyz="0.080 0.0 0.0" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="10.0" velocity="1.0"/>
   </joint>
 
   <!-- Finger Base -->
@@ -510,6 +512,7 @@
     <!-- Position: 0, 14, 0 (Finger Dis is 28, so +/- 14) -->
     <origin xyz="0.0 0.014 0.0" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
+    <limit lower="-0.7854" upper="0.7854" effort="2.0" velocity="1.0"/>
   </joint>
 
   <!-- Finger Right (Height: 65mm) -->
@@ -540,6 +543,7 @@
     <!-- Position: 0, -14, 0 -->
     <origin xyz="0.0 -0.014 0.0" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>
+    <limit lower="-0.7854" upper="0.7854" effort="2.0" velocity="1.0"/>
   </joint>
 
 </robot>
