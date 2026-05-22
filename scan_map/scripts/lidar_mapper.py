@@ -1,135 +1,102 @@
 #!/usr/bin/env python3
 """
-Lidar mapper for a rectangular arena.
+Lidar mapper for a rectangular arena using Scan-to-Map ICP SLAM.
 
-Per-frame RANSAC wall-line extraction → absolute pose from known arena geometry.
-No odometry dependency, no drift accumulation.
+Features:
+- Voxel-downsampled global map for loop closure.
+- Kinematic Deadzone filtering to prevent flat-wall jitter.
+- Graceful shutdown for guaranteed map saving.
 """
-import math, os, signal, subprocess, sys, yaml
+import math, os, subprocess, sys, yaml
 import numpy as np
+from scipy.spatial import cKDTree
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import TransformStamped
 from std_srvs.srv import Trigger
 from tf2_ros import TransformBroadcaster
 
+# ── Configuration ────────────────────────────────────────────────────────────
 
-# ── RANSAC hyperparameters ────────────────────────────────────────────────────
-
-_RANSAC_ITERS = 80
-_INLIER_DIST  = 0.03   # m — point-to-line threshold
-_MIN_INLIERS  = 20
-_MAX_WALLS    = 4
-_PLATE_OFFSET = 0.3    # m — robot center from starting corner
-
-# Wall normal directions in map frame (right, top, left, bottom)
-_WALL_ANGLES  = [0.0, math.pi/2, math.pi, 3*math.pi/2]
+_PLATE_OFFSET = 0.3    # m — starting distance from corner
+_MAX_ICP_ITER = 25
+_ICP_TOL      = 1e-4
+_VOXEL_SIZE   = 1.0    # m — map resolution
+_MAX_CORR_DST = 0.15   # m — max distance to accept point pair
 
 
-# ── Pure geometry helpers ─────────────────────────────────────────────────────
-
-def _adiff(a, b):
-    """Signed angular difference a−b, wrapped to (−π, π]."""
-    d = (a - b) % (2*math.pi)
-    return d - 2*math.pi if d > math.pi else d
-
-
-def _fit_line(pts, n_iter, thresh, min_pts):
-    """
-    RANSAC line fit. Returns ((a,b,c), inlier_mask) where ax+by+c=0
-    and (a,b) is a unit normal. Returns (None, None) on failure.
-    """
-    rng = np.random.default_rng(0)
-    best = np.zeros(len(pts), bool)
-    for _ in range(n_iter):
-        i, j = rng.choice(len(pts), 2, replace=False)
-        d  = pts[j] - pts[i]
-        nn = np.linalg.norm(d)
-        if nn < 1e-6:
-            continue
-        a, b = -d[1]/nn, d[0]/nn
-        c    = -(a*pts[i,0] + b*pts[i,1])
-        mask = np.abs(a*pts[:,0] + b*pts[:,1] + c) < thresh
-        if mask.sum() > best.sum():
-            best = mask
-    if best.sum() < min_pts:
-        return None, None
-    # Refit on all inliers for accuracy
-    inp = pts[best]
-    p   = inp.mean(0)
-    _, _, Vt = np.linalg.svd(inp - p)
-    a, b = -Vt[0,1], Vt[0,0]
-    nn   = math.hypot(a, b)
-    a   /= nn; b /= nn
-    c    = -(a*p[0] + b*p[1])
-    return (a, b, c), best
+def _voxel_downsample(points, voxel_size=_VOXEL_SIZE):
+    if len(points) == 0:
+        return points
+    voxels = np.round(points / voxel_size).astype(int)
+    _, unique_indices = np.unique(voxels, axis=0, return_index=True)
+    return points[unique_indices]
 
 
-def _extract_walls(pts):
-    """Iteratively remove dominant lines up to _MAX_WALLS."""
-    remaining, walls = pts.copy(), []
-    for _ in range(_MAX_WALLS):
-        if len(remaining) < _MIN_INLIERS:
+def _icp_2d_scan_to_map(local_pts, global_map, current_pose, max_iters=_MAX_ICP_ITER, tolerance=_ICP_TOL):
+    rx, ry, theta = current_pose
+    
+    cos_t, sin_t = math.cos(theta), math.sin(theta)
+    R_pose = np.array([[cos_t, -sin_t], [sin_t, cos_t]])
+    t_pose = np.array([rx, ry])
+    
+    src_curr = (R_pose @ local_pts.T).T + t_pose
+    
+    total_R = np.eye(2)
+    total_t = np.zeros(2)
+    tree = cKDTree(global_map)
+
+    for _ in range(max_iters):
+        dists, nn_idx = tree.query(src_curr)
+
+        valid = dists < _MAX_CORR_DST
+        if np.sum(valid) < 15:
+            break 
+
+        src_v = src_curr[valid]
+        dst_v = global_map[nn_idx[valid]]
+
+        mu_s = np.mean(src_v, axis=0)
+        mu_d = np.mean(dst_v, axis=0)
+
+        src_c = src_v - mu_s
+        dst_c = dst_v - mu_d
+
+        H = src_c.T @ dst_c
+        U, _, Vt = np.linalg.svd(H)
+        R = Vt.T @ U.T
+
+        if np.linalg.det(R) < 0:
+            Vt[1, :] *= -1
+            R = Vt.T @ U.T
+
+        t = mu_d - R @ mu_s
+
+        src_curr = (R @ src_curr.T).T + t
+        total_R = R @ total_R
+        total_t = R @ total_t + t
+
+        if np.mean(np.abs(t)) < tolerance and np.abs(np.arccos(np.clip(total_R[0,0], -1.0, 1.0))) < tolerance:
             break
-        line, mask = _fit_line(remaining, _RANSAC_ITERS, _INLIER_DIST, _MIN_INLIERS)
-        if line is None:
-            break
-        walls.append(line)
-        remaining = remaining[~mask]
-    return walls
+            
+    new_R = total_R @ R_pose
+    new_t = total_R @ t_pose + total_t
+    
+    new_theta = math.atan2(new_R[1, 0], new_R[0, 0])
+    new_rx, new_ry = new_t[0], new_t[1]
 
-
-def _estimate_pose(walls, field):
-    """
-    Compute absolute robot pose (rx, ry, theta) from wall lines detected in
-    robot frame. Returns None if walls don't align clearly to a rectangle.
-
-    Strategy:
-      1. Find robot heading theta by minimising angular residuals when mapping
-         each detected wall normal to the nearest cardinal direction.
-      2. With theta known, assign each wall to a map-side and read robot coords
-         from the point-to-line distance.
-    """
-    if len(walls) < 2:
-        return None
-
-    alphas = [math.atan2(w[1], w[0]) % (2*math.pi) for w in walls]
-    dists  = [abs(w[2]) for w in walls]   # distance from robot to each wall
-
-    # Grid search over (reference wall normal, detected wall) pairings for theta
-    best_theta, best_score = 0.0, float('inf')
-    for ref in _WALL_ANGLES:
-        for alpha in alphas:
-            theta = _adiff(ref, alpha)
-            score = sum(
-                min(_adiff((a + theta) % (2*math.pi), n)**2 for n in _WALL_ANGLES)
-                for a in alphas
-            )
-            if score < best_score:
-                best_score = score
-                best_theta = theta
-
-    if best_score > 0.3:   # walls don't cleanly align to a rectangle
-        return None
-
-    # Assign each wall to a map side and accumulate coordinate estimates
-    rxs, rys = [], []
-    for (a, b, _), d in zip(walls, dists):
-        map_angle = (math.atan2(b, a) + best_theta) % (2*math.pi)
-        nearest   = min(_WALL_ANGLES, key=lambda n: abs(_adiff(map_angle, n)))
-        if abs(_adiff(map_angle, nearest)) > 0.3:
-            continue                                      # poor match, skip
-        if   abs(_adiff(nearest, 0.0))          < 0.1:  rxs.append(field - d)  # right wall x=field
-        elif abs(_adiff(nearest, math.pi))       < 0.1:  rxs.append(d)          # left wall  x=0
-        elif abs(_adiff(nearest, math.pi/2))     < 0.1:  rys.append(field - d)  # top wall   y=field
-        elif abs(_adiff(nearest, 3*math.pi/2))   < 0.1:  rys.append(d)          # bottom wall y=0
-
-    if not rxs or not rys:
-        return None
-    return float(np.mean(rxs)), float(np.mean(rys)), best_theta
+    # Velocity Clamp (Reject massive physics-breaking jumps)
+    dist_jump = math.hypot(new_rx - rx, new_ry - ry)
+    angle_jump = abs(math.atan2(math.sin(new_theta - theta), math.cos(new_theta - theta)))
+    
+    if dist_jump > 0.20 or angle_jump > 0.20:
+        return current_pose 
+    
+    return new_rx, new_ry, new_theta
 
 
 # ── ROS2 node ─────────────────────────────────────────────────────────────────
@@ -139,7 +106,7 @@ class LidarMapper(Node):
         super().__init__('lidar_mapper')
         for name, val in [('scan_topic', '/scan'), ('base_frame', 'car_base'),
                           ('map_frame',  'map'),   ('field_size', 4.0),
-                          ('resolution', 0.005),   ('margin',     0.1)]:
+                          ('resolution', 0.01),   ('margin',     0.1)]:
             self.declare_parameter(name, val)
 
         self.field      = self.get_parameter('field_size').value
@@ -148,24 +115,28 @@ class LidarMapper(Node):
         self.base_frame = self.get_parameter('base_frame').value
         self.map_frame  = self.get_parameter('map_frame').value
 
-        sz         = int(round((self.field + 2*self.margin) / self.res))
-        self.size  = sz
-        self.hits    = np.zeros((sz, sz), np.int32)   # occupied ray endpoints
-        self.visited = np.zeros((sz, sz), np.int32)   # free ray cells
+        sz           = int(round((self.field + 2*self.margin) / self.res))
+        self.size    = sz
+        self.hits    = np.zeros((sz, sz), np.int32)   
+        self.visited = np.zeros((sz, sz), np.int32)   
 
-        self.pose    = None    # (rx, ry, theta) in map frame
-        self._first  = True
-        self._tf     = TransformBroadcaster(self)
+        self.pose           = (_PLATE_OFFSET, _PLATE_OFFSET, 0.0) 
+        self.global_map_pts = None   
+        self.keyframe_pose  = self.pose
+        
+        self._tf = TransformBroadcaster(self)
 
         self.create_subscription(
-            LaserScan, self.get_parameter('scan_topic').value, self._on_scan, 10)
+            LaserScan,
+            self.get_parameter('scan_topic').value,
+            self._on_scan,
+            qos_profile_sensor_data,
+        )
         self.pub = self.create_publisher(OccupancyGrid, '/map', 1)
         self.create_service(Trigger, '/save_map', self._save_cb)
-        self.create_timer(0.5, self._publish_map)
+        self.create_timer(0.2, self._publish_map)
 
-        signal.signal(signal.SIGINT, lambda *_: (self._save(), self._run_processor(), rclpy.shutdown()))
-        self.get_logger().info(
-            f'LidarMapper ready — {sz}² grid @ {self.res*1e3:.0f} mm/cell')
+        self.get_logger().info(f'LidarMapper ready — {sz}² grid @ {self.res*1e3:.0f} mm/cell')
 
     # ── scan callback ─────────────────────────────────────────────────────────
 
@@ -174,30 +145,65 @@ class LidarMapper(Node):
         r      = np.array(msg.ranges, np.float64)
         ok     = np.isfinite(r) & (r > msg.range_min) & (r < msg.range_max)
         pts    = np.column_stack([r[ok]*np.cos(angles[ok]), r[ok]*np.sin(angles[ok])])
-        if len(pts) < _MIN_INLIERS:
+        
+        if len(pts) < 15:
             return
 
-        result = _estimate_pose(_extract_walls(pts), self.field)
+        if self.global_map_pts is None:
+            rx, ry, theta = self.pose
+            cos_t, sin_t = math.cos(theta), math.sin(theta)
+            global_pts = np.copy(pts)
+            global_pts[:,0] = cos_t*pts[:,0] - sin_t*pts[:,1] + rx
+            global_pts[:,1] = sin_t*pts[:,0] + cos_t*pts[:,1] + ry
+            self.global_map_pts = _voxel_downsample(global_pts)
+            return
 
-        if result is None:
-            if self.pose is None:
-                return                  # can't place robot yet
-            rx, ry, theta = self.pose  # hold last known pose
-        else:
-            rx, ry, theta = result
-            if self._first:
-                # Snap initial position to the nearest expected corner
-                p = _PLATE_OFFSET
-                corners = [(p, p), (self.field-p, p), (p, self.field-p), (self.field-p, self.field-p)]
-                rx, ry  = min(corners, key=lambda c: (c[0]-rx)**2 + (c[1]-ry)**2)
-                self._first = False
-            self.pose = (rx, ry, theta)
+        # 1. Get raw ICP suggestion
+        raw_rx, raw_ry, raw_theta = _icp_2d_scan_to_map(pts, self.global_map_pts, self.pose)
+        
+        # 2. Apply Kinematic Deadzone (Kill micro-jittering)
+        old_rx, old_ry, old_theta = self.pose
+        
+        dx = raw_rx - old_rx
+        dy = raw_ry - old_ry
+        dtheta = math.atan2(math.sin(raw_theta - old_theta), math.cos(raw_theta - old_theta))
+        
+        # If movement is < 1cm, zero it out (stop sliding)
+        if math.hypot(dx, dy) < 0.01:
+            dx, dy = 0.0, 0.0
+            
+        # If rotation is < 0.5 degrees, zero it out (stop spinning)
+        if abs(dtheta) < 0.0087:
+            dtheta = 0.0
+            
+        # 3. Apply Low-Pass Filter (Smooth intentional movement)
+        alpha = 0.6  # Trust ICP 60% per frame
+        final_rx = old_rx + dx * alpha
+        final_ry = old_ry + dy * alpha
+        final_theta = old_theta + dtheta * alpha
+        
+        self.pose = (final_rx, final_ry, final_theta)
+        
+        # 4. Map Expansion
+        kx, ky, ktheta = self.keyframe_pose
+        dist_moved = math.hypot(final_rx - kx, final_ry - ky)
+        angle_moved = abs(math.atan2(math.sin(final_theta - ktheta), math.cos(final_theta - ktheta)))
+        
+        if dist_moved > 0.15 or angle_moved > 0.15:
+            cos_t, sin_t = math.cos(final_theta), math.sin(final_theta)
+            aligned_pts = np.copy(pts)
+            aligned_pts[:,0] = cos_t*pts[:,0] - sin_t*pts[:,1] + final_rx
+            aligned_pts[:,1] = sin_t*pts[:,0] + cos_t*pts[:,1] + final_ry
+            
+            combined = np.vstack((self.global_map_pts, aligned_pts))
+            self.global_map_pts = _voxel_downsample(combined)
+            self.keyframe_pose = self.pose
 
-        self._update_grid(pts, rx, ry, theta)
-        self._broadcast_tf(rx, ry, theta, msg.header.stamp)
+        self._update_grid(pts, final_rx, final_ry, final_theta)
+        self._broadcast_tf(final_rx, final_ry, final_theta, msg.header.stamp)
 
-    # ── occupancy grid update ─────────────────────────────────────────────────
-
+    # ── grid update & tf ──────────────────────────────────────────────────────
+    
     def _update_grid(self, pts, rx, ry, theta):
         cos_t, sin_t = math.cos(theta), math.sin(theta)
         off = self.margin
@@ -209,21 +215,16 @@ class LidarMapper(Node):
         grx = int((rx + off) / self.res)
         gry = int((ry + off) / self.res)
 
-        # Mark occupied endpoints
         valid = (gx >= 0) & (gx < self.size) & (gy >= 0) & (gy < self.size)
         np.add.at(self.hits, (gy[valid], gx[valid]), 1)
 
-        # Raytrace free cells along each ray (Bresenham via linspace)
         for i in np.where(valid)[0]:
             steps = max(abs(int(gx[i]) - grx), abs(int(gy[i]) - gry))
-            if steps < 2:
-                continue
+            if steps < 2: continue
             xs = np.linspace(grx, int(gx[i]), steps, endpoint=False).astype(int)
             ys = np.linspace(gry, int(gy[i]), steps, endpoint=False).astype(int)
             ok = (xs >= 0) & (xs < self.size) & (ys >= 0) & (ys < self.size)
             np.add.at(self.visited, (ys[ok], xs[ok]), 1)
-
-    # ── TF broadcast ─────────────────────────────────────────────────────────
 
     def _broadcast_tf(self, rx, ry, theta, stamp):
         t = TransformStamped()
@@ -236,11 +237,8 @@ class LidarMapper(Node):
         t.transform.rotation.w    = math.cos(theta/2)
         self._tf.sendTransform(t)
 
-    # ── map publishing ────────────────────────────────────────────────────────
-
     def _publish_map(self):
-        if self.pose is None:
-            return
+        if self.pose is None: return
         occ = np.full((self.size, self.size), -1, np.int8)
         occ[self.visited > 0] = 0
         occ[self.hits    > 0] = 100
@@ -265,11 +263,10 @@ class LidarMapper(Node):
         maps_dir = os.path.join(self._pkg_share(), 'maps')
         os.makedirs(maps_dir, exist_ok=True)
 
-        # PGM: 0=occupied (black), 255=free (white), 205=unknown (grey)
         pgm = np.full((self.size, self.size), 205, np.uint8)
         pgm[self.visited > 0] = 255
         pgm[self.hits    > 0] = 0
-        pgm = np.flipud(pgm)   # row 0 = y_min in ROS convention
+        pgm = np.flipud(pgm)   
 
         pgm_path = os.path.join(maps_dir, 'raw_map.pgm')
         with open(pgm_path, 'wb') as f:
@@ -281,7 +278,11 @@ class LidarMapper(Node):
                        'origin': [-self.margin, -self.margin, 0.0],
                        'occupied_thresh': 0.65, 'free_thresh': 0.25, 'negate': 0}, f)
 
-        self.get_logger().info(f'Map saved → {pgm_path}')
+        # Print loudly so it's easy to find in the terminal after Ctrl+C
+        self.get_logger().info('\n' + '='*50)
+        self.get_logger().info(f'MAP SAVED SUCCESSFULLY TO:')
+        self.get_logger().info(f'{pgm_path}')
+        self.get_logger().info('='*50 + '\n')
 
     def _run_processor(self):
         script = os.path.join(self._pkg_share(), 'scripts', 'map_processor.py')
@@ -297,10 +298,21 @@ class LidarMapper(Node):
         return resp
 
 
-def main():
-    rclpy.init()
-    rclpy.spin(LidarMapper())
-
+def main(args=None):
+    rclpy.init(args=args)
+    mapper = LidarMapper()
+    
+    # Graceful Shutdown Block
+    try:
+        rclpy.spin(mapper)
+    except KeyboardInterrupt:
+        mapper.get_logger().info('Ctrl+C detected. Shutting down and saving map...')
+    finally:
+        # Guarantee saving happens before the node is destroyed
+        mapper._save()
+        mapper._run_processor()
+        mapper.destroy_node()
+        rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
