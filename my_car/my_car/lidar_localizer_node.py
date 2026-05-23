@@ -18,12 +18,14 @@ Pose filter mirrors lidar_mapper:
   - Velocity clamp rejects physics-breaking jumps
   - Kinematic deadzone suppresses sub-1 cm quantization jitter
 """
-import math, os
+import math, os, yaml
+import cv2
 import numpy as np
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
+from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped, Point, Quaternion
 from tf2_ros import (TransformBroadcaster, Buffer, TransformListener,
                      LookupException, ConnectivityException, ExtrapolationException)
@@ -41,6 +43,11 @@ _PLATE_OFFSET = 0.3    # m — corner seed offset from arena edge
 _MIN_SCORE    = 20     # occupied-cell hits required to accept a pose update
 _MAX_SCAN_PTS = 360    # downsample scan to this many points before scoring
 
+# Dilation radius (px) applied to the score map so wall inner faces score.
+# The lidar_map wall material is 10 px outside the arena boundary; a 13-px
+# dilation closes that gap plus adds 3 px margin for lidar noise.
+_DILATE_PX = 13
+
 
 # ── Pose filter parameters (mirrors lidar_mapper) ────────────────────────────
 
@@ -50,34 +57,62 @@ _DEADZONE_TRANS = 0.01    # m — micro-jitter floor
 _DEADZONE_ROT   = 0.0087  # rad — 0.5°
 
 
-# ── PGM loader ────────────────────────────────────────────────────────────────
+# ── Map loader ────────────────────────────────────────────────────────────────
 
-def _load_pgm(path):
-    with open(path, 'rb') as f:
+def _load_map(pgm_path):
+    """Load PGM + companion YAML.
+
+    Returns (occ, score_map, w, h, res, origin_x, origin_y) where:
+      occ       — raw uint8 pixel array (0=occupied, 255=free), shape (H, W)
+      score_map — dilated binary uint8 (255=occupied for correlation), shape (H, W)
+      res       — metres per pixel (from YAML)
+      origin_x/y — world coordinates of pixel (0, H-1) bottom-left corner (from YAML)
+    """
+    with open(pgm_path, 'rb') as f:
         def _next():
             line = f.readline()
             while line.startswith(b'#'):
                 line = f.readline()
             return line.strip()
         if _next() != b'P5':
-            raise ValueError(f'Not a binary PGM: {path}')
+            raise ValueError(f'Not a binary PGM: {pgm_path}')
         w, h = map(int, _next().split())
         int(_next())
         data = np.frombuffer(f.read(), dtype=np.uint8)
-    return data.reshape(h, w), w, h
+    occ = data.reshape(h, w)
+
+    yaml_path = pgm_path.replace('.pgm', '.yaml')
+    with open(yaml_path) as f:
+        meta = yaml.safe_load(f)
+    res = float(meta['resolution'])
+    ox  = float(meta['origin'][0])
+    oy  = float(meta['origin'][1])
+
+    # Dilate occupied pixels into the arena interior so that scan returns at
+    # the wall inner face (world x=0, y=0, x=4, y=4) score correctly.
+    occ_bin   = (occ < 128).astype(np.uint8) * 255
+    k         = 2 * _DILATE_PX + 1
+    score_map = cv2.dilate(occ_bin, np.ones((k, k), np.uint8))
+
+    return occ, score_map, w, h, res, ox, oy
 
 
 # ── Scan-to-map correlation search ───────────────────────────────────────────
 
-def _local_search(scan_pts, px, py, theta_list, occ_map, pixels, resolution,
+def _local_search(scan_pts, px, py, theta_list, score_map, pixels, resolution,
+                  origin_x, origin_y,
                   search_xy=_SEARCH_XY, step_xy=_STEP_XY):
     """
     For each theta in theta_list, search (x, y) in a grid around (px, py).
-    Score = number of scan endpoints landing on occupied cells (pixel < 128).
+    Score = number of scan endpoints landing on occupied cells of score_map.
     Returns (best_pose, best_score).
 
-    The (x, y) grid is fully vectorized via numpy broadcasting; theta_list
+    The (x, y) grid is fully vectorised via numpy broadcasting; theta_list
     is a small Python loop (4 for init mode, ~21 for tracking).
+
+    Pixel formula (ROS-standard, matches lidar_map.yaml metadata):
+      col = (world_x - origin_x) / resolution
+      row = (H - 1) - (world_y - origin_y) / resolution
     """
     if len(scan_pts) > _MAX_SCAN_PTS:
         idx = np.round(np.linspace(0, len(scan_pts) - 1, _MAX_SCAN_PTS)).astype(int)
@@ -104,13 +139,14 @@ def _local_search(scan_pts, px, py, theta_list, occ_map, pixels, resolution,
         # (Y, N): map y for each dy candidate and each scan point
         my = (py + dy)[:, np.newaxis] + ry[np.newaxis, :]
 
-        # Pixel indices — broadcast to (X, 1, N) and (1, Y, N) → (X, Y, N)
-        col = (mx[:, np.newaxis, :] / resolution).astype(np.int32)
-        row = (pixels - my[np.newaxis, :, :] / resolution).astype(np.int32)
+        # Pixel indices using correct ROS-standard formula
+        # broadcast to (X, 1, N) and (1, Y, N) → (X, Y, N)
+        col = ((mx[:, np.newaxis, :] - origin_x) / resolution).astype(np.int32)
+        row = ((pixels - 1) - (my[np.newaxis, :, :] - origin_y) / resolution).astype(np.int32)
 
         in_bounds = (col >= 0) & (col < pixels) & (row >= 0) & (row < pixels)
         scores = np.sum(
-            (occ_map[np.clip(row, 0, pixels - 1), np.clip(col, 0, pixels - 1)] < 128)
+            (score_map[np.clip(row, 0, pixels - 1), np.clip(col, 0, pixels - 1)] > 0)
             & in_bounds,
             axis=2)   # (X, Y)
 
@@ -154,15 +190,22 @@ class LidarLocalizer(Node):
         if not map_path:
             map_path = os.path.join(self._source_pkg_dir(), 'maps', 'lidar_map.pgm')
 
-        self._occ, w, h = _load_pgm(map_path)
-        self._pixels    = h
-        self._res       = self.field / self._pixels
+        self._occ, self._score_map, w, h, self._res, self._ox, self._oy = \
+            _load_map(map_path)
+        self._pixels = h
         self.get_logger().info(
-            f'Map loaded: {map_path} ({w}×{h} px, {self._res * 1e3:.1f} mm/cell)')
+            f'Map loaded: {map_path} ({w}×{h} px, res={self._res*1e3:.1f} mm, '
+            f'origin=({self._ox},{self._oy}))')
 
         self.create_subscription(
             LaserScan, self.get_parameter('scan_topic').value, self._on_scan, 10)
         self.pub = self.create_publisher(PoseWithCovarianceStamped, '/pose', 10)
+
+        # Publish the reference map as OccupancyGrid for Foxglove visualisation
+        self._map_pub = self.create_publisher(OccupancyGrid, '/map', 1)
+        self._map_msg = self._make_map_msg()
+        self.create_timer(1.0, self._pub_map)
+
         self.get_logger().info('LidarLocalizer ready')
 
     def _source_pkg_dir(self):
@@ -173,6 +216,34 @@ class LidarLocalizer(Node):
            os.path.isfile(os.path.join(src, 'package.xml')):
             return src
         return share
+
+    # ── Map publisher ─────────────────────────────────────────────────────────
+
+    def _make_map_msg(self):
+        """Convert lidar_map.pgm to a ROS OccupancyGrid message.
+
+        lidar_map PGM: row 0 = top of image (high world y), pixel 0=occupied.
+        OccupancyGrid: row 0 = bottom (low world y), 100=occupied, 0=free.
+        → flipud before filling data.
+        """
+        flipped = np.flipud(self._occ)
+        data = np.where(flipped < 128, 100, 0).astype(np.int8)
+        msg = OccupancyGrid()
+        msg.header.frame_id             = self.map_frame
+        msg.info.resolution             = self._res
+        msg.info.width                  = self._occ.shape[1]
+        msg.info.height                 = self._occ.shape[0]
+        msg.info.origin.position.x      = self._ox
+        msg.info.origin.position.y      = self._oy
+        msg.info.origin.orientation.w   = 1.0
+        msg.data = data.flatten().tolist()
+        return msg
+
+    def _pub_map(self):
+        self._map_msg.header.stamp = self.get_clock().now().to_msg()
+        self._map_pub.publish(self._map_msg)
+
+    # ── TF resolver ───────────────────────────────────────────────────────────
 
     def _resolve_scan_to_base(self, scan_frame):
         """Look up static transform scan_frame → base_frame. Returns False if not ready."""
@@ -193,6 +264,8 @@ class LidarLocalizer(Node):
             f'TF {scan_frame} → {self.base_frame}: '
             f'dx={t.x:.3f} dy={t.y:.3f} dyaw={yaw:.3f}')
         return True
+
+    # ── Scan callback ─────────────────────────────────────────────────────────
 
     def _on_scan(self, msg):
         if self.scan_to_base is None:
@@ -220,6 +293,14 @@ class LidarLocalizer(Node):
 
         self._track_pose(pts, msg.header.stamp)
 
+    # ── Pose search ───────────────────────────────────────────────────────────
+
+    def _search(self, pts, px, py, theta_list, search_xy, step_xy):
+        return _local_search(pts, px, py, theta_list,
+                             self._score_map, self._pixels, self._res,
+                             self._ox, self._oy,
+                             search_xy=search_xy, step_xy=step_xy)
+
     def _init_pose(self, pts, stamp):
         """Try 4 cardinal headings × 4 corner seeds to find initial pose."""
         p = _PLATE_OFFSET
@@ -229,10 +310,8 @@ class LidarLocalizer(Node):
 
         best_score, best_pose = -1, None
         for seed in seeds:
-            pose, score = _local_search(
-                pts, seed[0], seed[1], theta4, self._occ,
-                self._pixels, self._res,
-                search_xy=_INIT_SEARCH, step_xy=_INIT_STEP)
+            pose, score = self._search(pts, seed[0], seed[1], theta4,
+                                       _INIT_SEARCH, _INIT_STEP)
             if score > best_score:
                 best_score, best_pose = score, pose
 
@@ -252,8 +331,8 @@ class LidarLocalizer(Node):
             ptheta + _TRACK_DA + _TRACK_DT * 0.5,
             _TRACK_DT).tolist()
 
-        pose, score = _local_search(pts, px, py, theta_candidates,
-                                    self._occ, self._pixels, self._res)
+        pose, score = self._search(pts, px, py, theta_candidates,
+                                   _SEARCH_XY, _STEP_XY)
 
         if score >= _MIN_SCORE:
             new_rx, new_ry, new_theta = pose
@@ -277,6 +356,8 @@ class LidarLocalizer(Node):
         rx, ry, theta = self._pose
         self._publish(rx, ry, theta, stamp)
         self._broadcast_tf(rx, ry, theta, stamp)
+
+    # ── Publishers ────────────────────────────────────────────────────────────
 
     def _publish(self, rx, ry, theta, stamp):
         msg = PoseWithCovarianceStamped()
