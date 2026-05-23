@@ -8,6 +8,12 @@ Every frame:
   3. Best-scoring (theta, x, y) wins — pyramid positions resolve the ambiguity
 
 If RANSAC fails, falls back to a continuous theta range around the previous heading.
+
+Pose logic mirrors lidar_mapper:
+  - scan_frame → base_frame static offset resolved via tf2
+  - Kinematic deadzone suppresses sub-1cm quantization jitter
+  - Velocity clamp rejects physics-breaking jumps
+  - Velocity clamp and kinematic deadzone stabilise _pose without lag
 """
 import math, os
 import numpy as np
@@ -16,7 +22,8 @@ from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped, Point, Quaternion
-from tf2_ros import TransformBroadcaster
+from tf2_ros import (TransformBroadcaster, Buffer, TransformListener,
+                     LookupException, ConnectivityException, ExtrapolationException)
 
 
 # ── RANSAC hyperparameters ────────────────────────────────────────────────────
@@ -39,6 +46,14 @@ _FALLBACK_DA  = 0.08   # rad — theta search radius when RANSAC fails
 _FALLBACK_DT  = 0.01   # rad — theta step when RANSAC fails
 _MIN_SCORE    = 20     # occupied-cell hits required to accept a pose update
 _MAX_SCAN_PTS = 360    # downsample scan to this many points before scoring
+
+
+# ── Pose filter parameters (mirrors lidar_mapper) ────────────────────────────
+
+_MAX_STEP_TRANS = 0.10    # m  per scan — velocity clamp
+_MAX_STEP_ROT   = 0.15    # rad per scan — velocity clamp
+_DEADZONE_TRANS = 0.01    # m — micro-jitter floor
+_DEADZONE_ROT   = 0.0087  # rad — 0.5°
 
 
 # ── RANSAC geometry ───────────────────────────────────────────────────────────
@@ -216,8 +231,14 @@ class LidarLocalizer(Node):
         self.field      = self.get_parameter('field_size').value
         self.base_frame = self.get_parameter('base_frame').value
         self.map_frame  = self.get_parameter('map_frame').value
-        self._pose      = None
-        self._tf        = TransformBroadcaster(self)
+
+        self._pose = None
+        self._tf   = TransformBroadcaster(self)
+
+        # scan_frame → base_frame static offset (resolved on first scan)
+        self.scan_to_base = None
+        self._tf_buffer   = Buffer()
+        self._tf_listener = TransformListener(self._tf_buffer, self)
 
         map_path = self.get_parameter('map_path').value
         if not map_path:
@@ -235,14 +256,45 @@ class LidarLocalizer(Node):
         self.pub = self.create_publisher(PoseWithCovarianceStamped, '/pose', 10)
         self.get_logger().info('LidarLocalizer ready')
 
+    def _resolve_scan_to_base(self, scan_frame):
+        """Look up static transform scan_frame → base_frame. Returns False if not ready."""
+        if scan_frame == self.base_frame:
+            self.scan_to_base = (0.0, 0.0, 0.0)
+            return True
+        try:
+            tf = self._tf_buffer.lookup_transform(
+                self.base_frame, scan_frame, rclpy.time.Time())
+        except (LookupException, ConnectivityException, ExtrapolationException):
+            return False
+        t = tf.transform.translation
+        q = tf.transform.rotation
+        yaw = math.atan2(2.0 * (q.w * q.z + q.x * q.y),
+                         1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+        self.scan_to_base = (t.x, t.y, yaw)
+        self.get_logger().info(
+            f'TF {scan_frame} → {self.base_frame}: '
+            f'dx={t.x:.3f} dy={t.y:.3f} dyaw={yaw:.3f}')
+        return True
+
     def _on_scan(self, msg):
+        if self.scan_to_base is None:
+            if not self._resolve_scan_to_base(msg.header.frame_id):
+                return
+
         angles = np.linspace(msg.angle_min, msg.angle_max, len(msg.ranges))
         r      = np.array(msg.ranges, np.float64)
         ok     = np.isfinite(r) & (r > msg.range_min) & (r < msg.range_max)
-        pts    = np.column_stack([r[ok] * np.cos(angles[ok]),
+        lpts   = np.column_stack([r[ok] * np.cos(angles[ok]),
                                   r[ok] * np.sin(angles[ok])])
-        if len(pts) < _MIN_INLIERS:
+        if len(lpts) < _MIN_INLIERS:
             return
+
+        # Transform scan_frame → base_frame (static lidar mount offset)
+        sx, sy, syaw = self.scan_to_base
+        cs, ss = math.cos(syaw), math.sin(syaw)
+        pts = np.empty_like(lpts)
+        pts[:, 0] = cs * lpts[:, 0] - ss * lpts[:, 1] + sx
+        pts[:, 1] = ss * lpts[:, 0] + cs * lpts[:, 1] + sy
 
         ransac = _estimate_pose(_extract_walls(pts), self.field)
 
@@ -277,8 +329,27 @@ class LidarLocalizer(Node):
 
         pose, score = _local_search(pts, px, py, theta4,
                                     self._occ, self._pixels, self._res)
+
         if score >= _MIN_SCORE:
-            self._pose = pose
+            new_rx, new_ry, new_theta = pose
+            old_rx, old_ry, old_theta = self._pose
+
+            # Velocity clamp — reject physics-breaking jumps
+            dist_jump  = math.hypot(new_rx - old_rx, new_ry - old_ry)
+            angle_jump = abs(math.atan2(math.sin(new_theta - old_theta),
+                                        math.cos(new_theta - old_theta)))
+
+            if dist_jump <= _MAX_STEP_TRANS and angle_jump <= _MAX_STEP_ROT:
+                # Kinematic deadzone — suppress grid-step quantization jitter
+                dx     = new_rx - old_rx
+                dy     = new_ry - old_ry
+                dtheta = math.atan2(math.sin(new_theta - old_theta),
+                                    math.cos(new_theta - old_theta))
+                if math.hypot(dx, dy) < _DEADZONE_TRANS:
+                    dx, dy = 0.0, 0.0
+                if abs(dtheta) < _DEADZONE_ROT:
+                    dtheta = 0.0
+                self._pose = (old_rx + dx, old_ry + dy, old_theta + dtheta)
 
         rx, ry, theta = self._pose
         self._publish(rx, ry, theta, msg.header.stamp)
