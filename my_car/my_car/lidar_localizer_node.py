@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """
-Lidar localizer — hybrid RANSAC heading + scan-to-map correlation.
+Lidar localizer — pure scan-to-map correlation, no RANSAC.
 
 Every frame:
-  1. RANSAC wall-fit → sub-degree heading (4-fold ambiguous: 0/90/180/270°)
-  2. Map correlation search over (x, y) for each of the 4 theta candidates
-  3. Best-scoring (theta, x, y) wins — pyramid positions resolve the ambiguity
+  1. Rotate scan pts by each theta candidate
+  2. Count how many land on occupied cells in lidar_map.pgm (walls + pyramid outlines)
+  3. Best (theta, x, y) wins
 
-If RANSAC fails, falls back to a continuous theta range around the previous heading.
+Initialization:
+  - Try 4 cardinal headings × 4 corner seeds with wide (x, y) search
+  - The asymmetric pyramid positions in lidar_map.pgm disambiguate the 4 headings
 
-Pose logic mirrors lidar_mapper:
-  - scan_frame → base_frame static offset resolved via tf2
-  - Kinematic deadzone suppresses sub-1cm quantization jitter
+Tracking:
+  - ±10° theta window at 1° steps, ±0.15 m (x, y) at 1 cm steps
+
+Pose filter mirrors lidar_mapper:
   - Velocity clamp rejects physics-breaking jumps
-  - Velocity clamp and kinematic deadzone stabilise _pose without lag
+  - Kinematic deadzone suppresses sub-1 cm quantization jitter
 """
 import math, os
 import numpy as np
@@ -26,24 +29,15 @@ from tf2_ros import (TransformBroadcaster, Buffer, TransformListener,
                      LookupException, ConnectivityException, ExtrapolationException)
 
 
-# ── RANSAC hyperparameters ────────────────────────────────────────────────────
-
-_RANSAC_ITERS = 80
-_INLIER_DIST  = 0.03
-_MIN_INLIERS  = 20
-_MAX_WALLS    = 4
-_PLATE_OFFSET = 0.3
-_WALL_ANGLES  = [0.0, math.pi / 2, math.pi, 3 * math.pi / 2]
-
-
 # ── Search parameters ─────────────────────────────────────────────────────────
 
 _SEARCH_XY    = 0.15   # m — (x, y) search radius (tracking)
 _STEP_XY      = 0.01   # m — (x, y) step size
 _INIT_SEARCH  = 0.5    # m — (x, y) search radius on first frame
 _INIT_STEP    = 0.02   # m — (x, y) step size on first frame
-_FALLBACK_DA  = 0.08   # rad — theta search radius when RANSAC fails
-_FALLBACK_DT  = 0.01   # rad — theta step when RANSAC fails
+_TRACK_DA     = 0.175  # rad ≈ 10° — theta search radius (tracking)
+_TRACK_DT     = 0.0175 # rad ≈ 1°  — theta step (tracking)
+_PLATE_OFFSET = 0.3    # m — corner seed offset from arena edge
 _MIN_SCORE    = 20     # occupied-cell hits required to accept a pose update
 _MAX_SCAN_PTS = 360    # downsample scan to this many points before scoring
 
@@ -54,90 +48,6 @@ _MAX_STEP_TRANS = 0.10    # m  per scan — velocity clamp
 _MAX_STEP_ROT   = 0.15    # rad per scan — velocity clamp
 _DEADZONE_TRANS = 0.01    # m — micro-jitter floor
 _DEADZONE_ROT   = 0.0087  # rad — 0.5°
-
-
-# ── RANSAC geometry ───────────────────────────────────────────────────────────
-
-def _adiff(a, b):
-    d = (a - b) % (2 * math.pi)
-    return d - 2 * math.pi if d > math.pi else d
-
-
-def _fit_line(pts, n_iter, thresh, min_pts):
-    rng = np.random.default_rng(0)
-    best = np.zeros(len(pts), bool)
-    for _ in range(n_iter):
-        i, j = rng.choice(len(pts), 2, replace=False)
-        d = pts[j] - pts[i]
-        nn = np.linalg.norm(d)
-        if nn < 1e-6:
-            continue
-        a, b = -d[1] / nn, d[0] / nn
-        c = -(a * pts[i, 0] + b * pts[i, 1])
-        mask = np.abs(a * pts[:, 0] + b * pts[:, 1] + c) < thresh
-        if mask.sum() > best.sum():
-            best = mask
-    if best.sum() < min_pts:
-        return None, None
-    inp = pts[best]
-    p = inp.mean(0)
-    _, _, Vt = np.linalg.svd(inp - p)
-    a, b = -Vt[0, 1], Vt[0, 0]
-    nn = math.hypot(a, b)
-    a /= nn; b /= nn
-    c = -(a * p[0] + b * p[1])
-    return (a, b, c), best
-
-
-def _extract_walls(pts):
-    remaining, walls = pts.copy(), []
-    for _ in range(_MAX_WALLS):
-        if len(remaining) < _MIN_INLIERS:
-            break
-        line, mask = _fit_line(remaining, _RANSAC_ITERS, _INLIER_DIST, _MIN_INLIERS)
-        if line is None:
-            break
-        walls.append(line)
-        remaining = remaining[~mask]
-    return walls
-
-
-def _estimate_pose(walls, field):
-    """Returns (rx, ry, theta) or None. theta is 4-fold ambiguous modulo π/2."""
-    if len(walls) < 2:
-        return None
-    alphas = [math.atan2(w[1], w[0]) % (2 * math.pi) for w in walls]
-    dists  = [abs(w[2]) for w in walls]
-
-    best_theta, best_score = 0.0, float('inf')
-    for ref in _WALL_ANGLES:
-        for alpha in alphas:
-            theta = _adiff(ref, alpha)
-            score = sum(
-                min(_adiff((a + theta) % (2 * math.pi), n) ** 2 for n in _WALL_ANGLES)
-                for a in alphas
-            )
-            if score < best_score:
-                best_score = score
-                best_theta = theta
-
-    if best_score > 0.3:
-        return None
-
-    rxs, rys = [], []
-    for (a, b, _), d in zip(walls, dists):
-        map_angle = (math.atan2(b, a) + best_theta) % (2 * math.pi)
-        nearest   = min(_WALL_ANGLES, key=lambda n: abs(_adiff(map_angle, n)))
-        if abs(_adiff(map_angle, nearest)) > 0.3:
-            continue
-        if   abs(_adiff(nearest, 0.0))             < 0.1: rxs.append(field - d)
-        elif abs(_adiff(nearest, math.pi))          < 0.1: rxs.append(d)
-        elif abs(_adiff(nearest, math.pi / 2))     < 0.1: rys.append(field - d)
-        elif abs(_adiff(nearest, 3 * math.pi / 2)) < 0.1: rys.append(d)
-
-    if not rxs or not rys:
-        return None
-    return float(np.mean(rxs)), float(np.mean(rys)), best_theta
 
 
 # ── PGM loader ────────────────────────────────────────────────────────────────
@@ -167,7 +77,7 @@ def _local_search(scan_pts, px, py, theta_list, occ_map, pixels, resolution,
     Returns (best_pose, best_score).
 
     The (x, y) grid is fully vectorized via numpy broadcasting; theta_list
-    is a small Python loop (4 for RANSAC mode, ~17 for fallback).
+    is a small Python loop (4 for init mode, ~21 for tracking).
     """
     if len(scan_pts) > _MAX_SCAN_PTS:
         idx = np.round(np.linspace(0, len(scan_pts) - 1, _MAX_SCAN_PTS)).astype(int)
@@ -294,7 +204,7 @@ class LidarLocalizer(Node):
         ok     = np.isfinite(r) & (r > msg.range_min) & (r < msg.range_max)
         lpts   = np.column_stack([r[ok] * np.cos(angles[ok]),
                                   r[ok] * np.sin(angles[ok])])
-        if len(lpts) < _MIN_INLIERS:
+        if len(lpts) < 20:
             return
 
         # Transform scan_frame → base_frame (static lidar mount offset)
@@ -304,51 +214,56 @@ class LidarLocalizer(Node):
         pts[:, 0] = cs * lpts[:, 0] - ss * lpts[:, 1] + sx
         pts[:, 1] = ss * lpts[:, 0] + cs * lpts[:, 1] + sy
 
-        ransac = _estimate_pose(_extract_walls(pts), self.field)
-
         if self._pose is None:
-            if ransac is None:
-                return   # can't init without a heading estimate
-            rx, ry, theta = ransac
-            p       = _PLATE_OFFSET
-            corners = [(p, p), (self.field - p, p),
-                       (p, self.field - p), (self.field - p, self.field - p)]
-            rx, ry  = min(corners, key=lambda c: (c[0] - rx) ** 2 + (c[1] - ry) ** 2)
-            theta4  = [theta + k * math.pi / 2 for k in range(4)]
-            pose, _ = _local_search(pts, rx, ry, theta4, self._occ,
-                                    self._pixels, self._res,
-                                    search_xy=_INIT_SEARCH, step_xy=_INIT_STEP)
-            self._pose = pose
-            rx, ry, theta = pose
-            self.get_logger().info(
-                f'Initialised at ({rx:.2f}, {ry:.2f})  θ={math.degrees(theta):.1f}°')
-            self._publish(rx, ry, theta, msg.header.stamp)
-            self._broadcast_tf(rx, ry, theta, msg.header.stamp)
+            self._init_pose(pts, msg.header.stamp)
             return
 
-        px, py, ptheta = self._pose
-        if ransac is not None:
-            theta4 = [ransac[2] + k * math.pi / 2 for k in range(4)]
-        else:
-            # Fallback: continuous theta range around previous heading
-            theta4 = np.arange(ptheta - _FALLBACK_DA,
-                                ptheta + _FALLBACK_DA + _FALLBACK_DT * 0.5,
-                                _FALLBACK_DT).tolist()
+        self._track_pose(pts, msg.header.stamp)
 
-        pose, score = _local_search(pts, px, py, theta4,
+    def _init_pose(self, pts, stamp):
+        """Try 4 cardinal headings × 4 corner seeds to find initial pose."""
+        p = _PLATE_OFFSET
+        f = self.field
+        seeds  = [(p, p), (f - p, p), (p, f - p), (f - p, f - p)]
+        theta4 = [k * math.pi / 2 for k in range(4)]
+
+        best_score, best_pose = -1, None
+        for seed in seeds:
+            pose, score = _local_search(
+                pts, seed[0], seed[1], theta4, self._occ,
+                self._pixels, self._res,
+                search_xy=_INIT_SEARCH, step_xy=_INIT_STEP)
+            if score > best_score:
+                best_score, best_pose = score, pose
+
+        self._pose = best_pose
+        rx, ry, theta = best_pose
+        self.get_logger().info(
+            f'Initialised at ({rx:.2f}, {ry:.2f})  θ={math.degrees(theta):.1f}°  '
+            f'score={best_score}')
+        self._publish(rx, ry, theta, stamp)
+        self._broadcast_tf(rx, ry, theta, stamp)
+
+    def _track_pose(self, pts, stamp):
+        """Narrow theta + xy search around current pose."""
+        px, py, ptheta = self._pose
+        theta_candidates = np.arange(
+            ptheta - _TRACK_DA,
+            ptheta + _TRACK_DA + _TRACK_DT * 0.5,
+            _TRACK_DT).tolist()
+
+        pose, score = _local_search(pts, px, py, theta_candidates,
                                     self._occ, self._pixels, self._res)
 
         if score >= _MIN_SCORE:
             new_rx, new_ry, new_theta = pose
             old_rx, old_ry, old_theta = self._pose
 
-            # Velocity clamp — reject physics-breaking jumps
             dist_jump  = math.hypot(new_rx - old_rx, new_ry - old_ry)
             angle_jump = abs(math.atan2(math.sin(new_theta - old_theta),
                                         math.cos(new_theta - old_theta)))
 
             if dist_jump <= _MAX_STEP_TRANS and angle_jump <= _MAX_STEP_ROT:
-                # Kinematic deadzone — suppress grid-step quantization jitter
                 dx     = new_rx - old_rx
                 dy     = new_ry - old_ry
                 dtheta = math.atan2(math.sin(new_theta - old_theta),
@@ -360,8 +275,8 @@ class LidarLocalizer(Node):
                 self._pose = (old_rx + dx, old_ry + dy, old_theta + dtheta)
 
         rx, ry, theta = self._pose
-        self._publish(rx, ry, theta, msg.header.stamp)
-        self._broadcast_tf(rx, ry, theta, msg.header.stamp)
+        self._publish(rx, ry, theta, stamp)
+        self._broadcast_tf(rx, ry, theta, stamp)
 
     def _publish(self, rx, ry, theta, stamp):
         msg = PoseWithCovarianceStamped()
