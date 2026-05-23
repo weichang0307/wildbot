@@ -210,7 +210,15 @@ def main():
         px_y = pixels - int(my / FINAL_RES) + margin
 
         if is_pyramid:
-            run_tmp  = np.full(run_tmp.shape,  255, dtype=np.uint8) if run_tmp  is not None else None
+            def make_hollow(shape, t=2):
+                h, w = shape
+                img = np.zeros((h, w), dtype=np.uint8)
+                img[:t, :] = 255
+                img[-t:, :] = 255
+                img[:, :t] = 255
+                img[:, -t:] = 255
+                return img
+            run_tmp  = make_hollow(run_tmp.shape)  if run_tmp  is not None else None
             base_tmp = np.full(base_tmp.shape, 255, dtype=np.uint8) if base_tmp is not None else None
 
         draw_on_map(lidar_canvas,   run_tmp,  px_x, px_y, rel_yaw)
