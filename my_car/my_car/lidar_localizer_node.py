@@ -242,8 +242,7 @@ class LidarLocalizer(Node):
 
         map_path = self.get_parameter('map_path').value
         if not map_path:
-            share    = get_package_share_directory('scan_map')
-            map_path = os.path.join(share, 'maps', 'lidar_map.pgm')
+            map_path = os.path.join(self._source_pkg_dir(), 'maps', 'lidar_map.pgm')
 
         self._occ, w, h = _load_pgm(map_path)
         self._pixels    = h
@@ -255,6 +254,15 @@ class LidarLocalizer(Node):
             LaserScan, self.get_parameter('scan_topic').value, self._on_scan, 10)
         self.pub = self.create_publisher(PoseWithCovarianceStamped, '/pose', 10)
         self.get_logger().info('LidarLocalizer ready')
+
+    def _source_pkg_dir(self):
+        share = get_package_share_directory('scan_map')
+        ws_root = os.path.abspath(os.path.join(share, '..', '..', '..', '..'))
+        src = os.path.join(ws_root, 'scan_map')
+        if os.path.isdir(os.path.join(src, 'maps')) or \
+           os.path.isfile(os.path.join(src, 'package.xml')):
+            return src
+        return share
 
     def _resolve_scan_to_base(self, scan_frame):
         """Look up static transform scan_frame → base_frame. Returns False if not ready."""
