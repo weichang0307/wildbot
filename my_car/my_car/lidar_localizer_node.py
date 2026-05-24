@@ -24,6 +24,7 @@ import numpy as np
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped, Point, Quaternion
@@ -33,15 +34,21 @@ from tf2_ros import (TransformBroadcaster, Buffer, TransformListener,
 
 # ── Search parameters ─────────────────────────────────────────────────────────
 
-_SEARCH_XY    = 0.15   # m — (x, y) search radius (tracking)
+_SEARCH_XY    = 0.2   # m — (x, y) search radius (tracking)
 _STEP_XY      = 0.01   # m — (x, y) step size
 _INIT_SEARCH  = 0.5    # m — (x, y) search radius on first frame
-_INIT_STEP    = 0.02   # m — (x, y) step size on first frame
-_TRACK_DA     = 0.175  # rad ≈ 10° — theta search radius (tracking)
-_TRACK_DT     = 0.0175 # rad ≈ 1°  — theta step (tracking)
+_INIT_STEP    = 0.01   # m — (x, y) step size on first frame
+_TRACK_DA     = 0.070  # rad ≈ 10° — theta search radius (tracking)
+_TRACK_DT     = 0.007 # rad ≈ 1°  — theta step (tracking)
 _PLATE_OFFSET = 0.3    # m — corner seed offset from arena edge
 _MIN_SCORE    = 20     # occupied-cell hits required to accept a pose update
 _MAX_SCAN_PTS = 360    # downsample scan to this many points before scoring
+
+# Temporary wall-fit mode (RANSAC) parameters.
+_RANSAC_ITERS      = 10
+_RANSAC_THRESH     = 0.01   # m point-to-line inlier threshold
+_RANSAC_MIN_INLIER = 25
+_WALL_INLIER_THRESH = 0.08  # m distance-to-nearest-wall threshold
 
 # Dilation radius (px) applied to the score map so wall inner faces score.
 # The lidar_map wall material is 10 px outside the arena boundary; a 13-px
@@ -55,6 +62,11 @@ _MAX_STEP_TRANS = 0.10    # m  per scan — velocity clamp
 _MAX_STEP_ROT   = 0.15    # rad per scan — velocity clamp
 _DEADZONE_TRANS = 0.01    # m — micro-jitter floor
 _DEADZONE_ROT   = 0.0087  # rad — 0.5°
+
+# Small yaw correction applied only to broadcast TF (map -> base_frame).
+_TF_YAW_OFFSET  = 0.0    # rad ≈ 1.15°
+_TF_X_OFFSET   = -2.0     # m — for future use if needed to align with map frame better
+_TF_Y_OFFSET   = -2.0     # m — for future use if needed to align with map frame better
 
 
 # ── Map loader ────────────────────────────────────────────────────────────────
@@ -158,11 +170,144 @@ def _local_search(scan_pts, px, py, theta_list, score_map, pixels, resolution,
     return best_pose, best_score
 
 
+def _wrap_pi(a):
+    return math.atan2(math.sin(a), math.cos(a))
+
+
+def _fit_line_ransac(points, iters=_RANSAC_ITERS, thresh=_RANSAC_THRESH):
+    """Fit one 2D line in normal form n.x = d using simple RANSAC."""
+    if len(points) < 2:
+        return None
+
+    best = None
+    n_pts = len(points)
+
+    for _ in range(iters):
+        i, j = np.random.randint(0, n_pts, 2)
+        if i == j:
+            continue
+        p1 = points[i]
+        p2 = points[j]
+        v = p2 - p1
+        vn = math.hypot(v[0], v[1])
+        if vn < 1e-6:
+            continue
+
+        # Unit normal to line direction.
+        nx = -v[1] / vn
+        ny = v[0] / vn
+        d = nx * p1[0] + ny * p1[1]
+
+        dist = np.abs(nx * points[:, 0] + ny * points[:, 1] - d)
+        inliers = dist < thresh
+        count = int(np.sum(inliers))
+        if best is None or count > best['count']:
+            best = {
+                'n': np.array([nx, ny], dtype=np.float64),
+                'd': float(d),
+                'inliers': inliers,
+                'count': count,
+            }
+
+    return best
+
+
+def _extract_wall_lines(points):
+    """Extract up to 4 dominant line models, robust to small wall splits."""
+    rem = points.copy()
+    lines = []
+
+    for _ in range(4):
+        if len(rem) < _RANSAC_MIN_INLIER:
+            break
+        model = _fit_line_ransac(rem)
+        if model is None or model['count'] < _RANSAC_MIN_INLIER:
+            break
+        lines.append(model)
+        rem = rem[~model['inliers']]
+
+    return lines
+
+
+def _score_square_pose(scan_pts, field_size, rx, ry, theta):
+    """Score pose by how tightly transformed scan points lie on 4 square walls."""
+    c, s = math.cos(theta), math.sin(theta)
+    x = c * scan_pts[:, 0] - s * scan_pts[:, 1] + rx
+    y = s * scan_pts[:, 0] + c * scan_pts[:, 1] + ry
+
+    d = np.minimum.reduce([
+        np.abs(x),
+        np.abs(field_size - x),
+        np.abs(y),
+        np.abs(field_size - y),
+    ])
+    inliers = d < _WALL_INLIER_THRESH
+    return int(np.sum(inliers))
+
+
+def _estimate_square_pose_ransac(scan_pts, field_size, seed=None, prev_pose=None):
+    """Estimate (x, y, theta) from 4x4 square walls using RANSAC line extraction.
+
+    Orientation is ambiguous modulo 90 deg. For init we use one caller-selected
+    seed to pick the quadrant; during tracking we prefer continuity to prev_pose.
+    """
+    if len(scan_pts) > _MAX_SCAN_PTS:
+        idx = np.round(np.linspace(0, len(scan_pts) - 1, _MAX_SCAN_PTS)).astype(int)
+        scan_pts = scan_pts[idx]
+
+    lines = _extract_wall_lines(scan_pts)
+    if len(lines) < 2:
+        return None, 0
+
+    # Reference normal from strongest line. n ~= [cos(theta), -sin(theta)] up to sign.
+    n_ref = lines[0]['n']
+    theta_base = math.atan2(-n_ref[1], n_ref[0])
+    theta_candidates = [theta_base + k * math.pi / 2 for k in range(4)]
+
+    best_pose = None
+    best_score = -1e18
+
+    for theta in theta_candidates:
+        c, s = math.cos(theta), math.sin(theta)
+
+        # Project points on candidate map axes.
+        u = c * scan_pts[:, 0] - s * scan_pts[:, 1]
+        v = s * scan_pts[:, 0] + c * scan_pts[:, 1]
+
+        # Robust wall extents to tolerate split segments and outliers.
+        u_min, u_max = np.percentile(u, [4.0, 96.0])
+        v_min, v_max = np.percentile(v, [4.0, 96.0])
+
+        # Fit square tightly to map-frame center (L/2, L/2).
+        rx = field_size * 0.5 - 0.5 * (u_min + u_max)
+        ry = field_size * 0.5 - 0.5 * (v_min + v_max)
+
+        span_err = abs((u_max - u_min) - field_size) + abs((v_max - v_min) - field_size)
+        wall_score = _score_square_pose(scan_pts, field_size, rx, ry, theta)
+
+        score = float(wall_score) - 120.0 * float(span_err)
+
+        if prev_pose is None and seed is not None:
+            # Use configured seed to resolve 90-deg ambiguity at init.
+            sx, sy = seed
+            seed_dist = math.hypot(rx - sx, ry - sy)
+            score -= 2.0 * seed_dist
+        elif prev_pose is not None:
+            px, py, pth = prev_pose
+            score -= 1.0 * abs(_wrap_pi(theta - pth))
+            score -= 4.0 * math.hypot(rx - px, ry - py)
+
+        if score > best_score:
+            best_score = score
+            best_pose = (float(rx), float(ry), float(_wrap_pi(theta)))
+
+    return best_pose, int(round(best_score))
+
+
 # ── ROS2 node ─────────────────────────────────────────────────────────────────
 
 _COV_XY  = 0.005
 _COV_YAW = 0.02
-
 
 class LidarLocalizer(Node):
     def __init__(self):
@@ -171,12 +316,14 @@ class LidarLocalizer(Node):
                           ('base_frame', 'car_base'),
                           ('map_frame',  'map'),
                           ('field_size', 4.0),
-                          ('map_path',   '')]:
+                          ('map_path',   ''),
+                          ('seed_side',  'right')]:
             self.declare_parameter(name, val)
 
         self.field      = self.get_parameter('field_size').value
         self.base_frame = self.get_parameter('base_frame').value
         self.map_frame  = self.get_parameter('map_frame').value
+        self.seed_side  = str(self.get_parameter('seed_side').value).strip().lower()
 
         self._pose = None
         self._tf   = TransformBroadcaster(self)
@@ -188,7 +335,7 @@ class LidarLocalizer(Node):
 
         map_path = self.get_parameter('map_path').value
         if not map_path:
-            map_path = os.path.join(self._source_pkg_dir(), 'maps', 'lidar_map.pgm')
+            map_path = os.path.join(self._source_pkg_dir(), 'maps', 'planner_map.pgm')
 
         self._occ, self._score_map, w, h, self._res, self._ox, self._oy = \
             _load_map(map_path)
@@ -196,9 +343,14 @@ class LidarLocalizer(Node):
         self.get_logger().info(
             f'Map loaded: {map_path} ({w}×{h} px, res={self._res*1e3:.1f} mm, '
             f'origin=({self._ox},{self._oy}))')
+        
+        self.get_logger().info('Waiting for TF to resolve scan → base transform...')
 
         self.create_subscription(
-            LaserScan, self.get_parameter('scan_topic').value, self._on_scan, 10)
+            LaserScan,
+            self.get_parameter('scan_topic').value,
+            self._on_scan,
+            qos_profile_sensor_data)
         self.pub = self.create_publisher(PoseWithCovarianceStamped, '/pose', 10)
 
         # Publish the reference map as OccupancyGrid for Foxglove visualisation
@@ -207,6 +359,17 @@ class LidarLocalizer(Node):
         self.create_timer(1.0, self._pub_map)
 
         self.get_logger().info('LidarLocalizer ready')
+
+    def _seed_pose(self):
+        seed_map = {
+            'right': (-2.0, -2.0),
+            'left': (-2.0, 2.0),
+        }
+        if self.seed_side not in seed_map:
+            self.get_logger().warning(
+                f"Unknown seed_side '{self.seed_side}', defaulting to 'right'")
+            self.seed_side = 'right'
+        return seed_map[self.seed_side]
 
     def _source_pkg_dir(self):
         share = get_package_share_directory('scan_map')
@@ -268,6 +431,9 @@ class LidarLocalizer(Node):
     # ── Scan callback ─────────────────────────────────────────────────────────
 
     def _on_scan(self, msg):
+        # self.get_logger().debug(f'Scan received: frame_id={msg.header.frame_id} '
+        #                         f'angle=[{msg.angle_min:.2f}, {msg.angle_max:.2f}] '
+        #                         f'num_pts={len(msg.ranges)}')
         if self.scan_to_base is None:
             if not self._resolve_scan_to_base(msg.header.frame_id):
                 return
@@ -302,58 +468,72 @@ class LidarLocalizer(Node):
                              search_xy=search_xy, step_xy=step_xy)
 
     def _init_pose(self, pts, stamp):
-        """Try 4 cardinal headings × 4 corner seeds to find initial pose."""
-        p = _PLATE_OFFSET
-        f = self.field
-        seeds  = [(p, p), (f - p, p), (p, f - p), (f - p, f - p)]
-        theta4 = [k * math.pi / 2 for k in range(4)]
+        """Temporary init: RANSAC on square walls with one configured seed."""
+        seed = self._seed_pose()
 
-        best_score, best_pose = -1, None
-        for seed in seeds:
-            pose, score = self._search(pts, seed[0], seed[1], theta4,
-                                       _INIT_SEARCH, _INIT_STEP)
-            if score > best_score:
-                best_score, best_pose = score, pose
+        # Temporarily disabled map-correlation init:
+        # p = _PLATE_OFFSET
+        # f = self.field
+        # theta4 = [k * math.pi / 2 for k in range(4)]
+        # best_score, best_pose = -1, None
+        # pose, score = self._search(pts, seed[0], seed[1], theta4,
+        #                                _INIT_SEARCH, _INIT_STEP)
+        # if score > best_score:
+        #     best_score, best_pose = score, pose
+
+        best_pose, best_score = _estimate_square_pose_ransac(pts, self.field, seed)
+        if best_pose is None:
+            return
 
         self._pose = best_pose
-        rx, ry, theta = best_pose
+        rx, ry, theta = self._pose
         self.get_logger().info(
-            f'Initialised at ({rx:.2f}, {ry:.2f})  θ={math.degrees(theta):.1f}°  '
+            f'RANSAC init at ({rx:.2f}, {ry:.2f})  θ={math.degrees(theta):.1f}°  '
             f'score={best_score}')
         self._publish(rx, ry, theta, stamp)
         self._broadcast_tf(rx, ry, theta, stamp)
 
     def _track_pose(self, pts, stamp):
-        """Narrow theta + xy search around current pose."""
-        px, py, ptheta = self._pose
-        theta_candidates = np.arange(
-            ptheta - _TRACK_DA,
-            ptheta + _TRACK_DA + _TRACK_DT * 0.5,
-            _TRACK_DT).tolist()
+        
+        """Temporary tracking: per-scan RANSAC square-wall fit."""
+        # Temporarily disabled map-correlation tracker:
+        # px, py, ptheta = self._pose
+        # theta_candidates = np.arange(
+        #     ptheta - _TRACK_DA,
+        #     ptheta + _TRACK_DA + _TRACK_DT * 0.5,
+        #     _TRACK_DT).tolist()
+        # pose, score = self._search(pts, px, py, theta_candidates,
+        #                            _SEARCH_XY, _STEP_XY)
 
-        pose, score = self._search(pts, px, py, theta_candidates,
-                                   _SEARCH_XY, _STEP_XY)
+        seed = self._seed_pose()
+        pose, score = _estimate_square_pose_ransac(pts, self.field, seed, prev_pose=self._pose)
+        if pose is None:
+            return
+        
+        self.get_logger().info(f'Score: {score} (pose candidate: {pose})')
+        self._pose = pose
 
-        if score >= _MIN_SCORE:
-            new_rx, new_ry, new_theta = pose
-            old_rx, old_ry, old_theta = self._pose
+        # if score >= _MIN_SCORE:
+        #     new_rx, new_ry, new_theta = pose
+        #     old_rx, old_ry, old_theta = self._pose
 
-            dist_jump  = math.hypot(new_rx - old_rx, new_ry - old_ry)
-            angle_jump = abs(math.atan2(math.sin(new_theta - old_theta),
-                                        math.cos(new_theta - old_theta)))
+        #     dist_jump  = math.hypot(new_rx - old_rx, new_ry - old_ry)
+        #     angle_jump = abs(math.atan2(math.sin(new_theta - old_theta),
+        #                                 math.cos(new_theta - old_theta)))
 
-            if dist_jump <= _MAX_STEP_TRANS and angle_jump <= _MAX_STEP_ROT:
-                dx     = new_rx - old_rx
-                dy     = new_ry - old_ry
-                dtheta = math.atan2(math.sin(new_theta - old_theta),
-                                    math.cos(new_theta - old_theta))
-                if math.hypot(dx, dy) < _DEADZONE_TRANS:
-                    dx, dy = 0.0, 0.0
-                if abs(dtheta) < _DEADZONE_ROT:
-                    dtheta = 0.0
-                self._pose = (old_rx + dx, old_ry + dy, old_theta + dtheta)
+        #     if dist_jump <= _MAX_STEP_TRANS and angle_jump <= _MAX_STEP_ROT:
+        #         dx     = new_rx - old_rx
+        #         dy     = new_ry - old_ry
+        #         dtheta = math.atan2(math.sin(new_theta - old_theta),
+        #                             math.cos(new_theta - old_theta))
+        #         if math.hypot(dx, dy) < _DEADZONE_TRANS:
+        #             dx, dy = 0.0, 0.0
+        #         if abs(dtheta) < _DEADZONE_ROT:
+        #             dtheta = 0.0
+        #         self._pose = (old_rx + dx, old_ry + dy, old_theta + dtheta)
 
         rx, ry, theta = self._pose
+        # self.get_logger().info(f'Pose: ({rx:.2f}, {ry:.2f})  θ={math.degrees(theta):.1f}°  score={score}')
         self._publish(rx, ry, theta, stamp)
         self._broadcast_tf(rx, ry, theta, stamp)
 
@@ -374,14 +554,17 @@ class LidarLocalizer(Node):
         self.pub.publish(msg)
 
     def _broadcast_tf(self, rx, ry, theta, stamp):
+        x_tf = rx + _TF_X_OFFSET
+        y_tf = ry + _TF_Y_OFFSET
+        theta_tf = theta + _TF_YAW_OFFSET
         t = TransformStamped()
         t.header.stamp      = stamp
         t.header.frame_id   = self.map_frame
         t.child_frame_id    = self.base_frame
-        t.transform.translation.x = rx
-        t.transform.translation.y = ry
-        t.transform.rotation.z    = math.sin(theta / 2)
-        t.transform.rotation.w    = math.cos(theta / 2)
+        t.transform.translation.x = x_tf
+        t.transform.translation.y = y_tf
+        t.transform.rotation.z    = math.sin(theta_tf / 2)
+        t.transform.rotation.w    = math.cos(theta_tf / 2)
         self._tf.sendTransform(t)
 
 

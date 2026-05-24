@@ -21,7 +21,7 @@ def main(args=None):
     nodes.append(AStarPlannerNode())
     # nodes.append(RRTStarPlannerNode())
     nodes.append(BearMapNode())
-    # nodes.append(LidarLocalizer())
+    nodes.append(LidarLocalizer())
 
     executor = MultiThreadedExecutor()
 

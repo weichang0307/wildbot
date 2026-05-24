@@ -233,7 +233,7 @@ def main():
     cv2.imwrite(os.path.join(MAP_DIR, "lidar_map.pgm"),   lidar_canvas)
 
     wall_m = margin * FINAL_RES
-    yaml_base = {"resolution": FINAL_RES, "origin": [-wall_m, -wall_m, 0.0],
+    yaml_base = {"resolution": FINAL_RES, "origin": [-2.1, -2.1, 0.0],
                  "occupied_thresh": 0.65, "free_thresh": 0.25, "negate": 0}
     for nm in ["planner_map", "lidar_map"]:
         with open(os.path.join(MAP_DIR, f"{nm}.yaml"), 'w') as f:
