@@ -64,9 +64,11 @@ _DEADZONE_TRANS = 0.01    # m — micro-jitter floor
 _DEADZONE_ROT   = 0.0087  # rad — 0.5°
 
 # Small yaw correction applied only to broadcast TF (map -> base_frame).
-_TF_YAW_OFFSET  = 0.0    # rad ≈ 1.15°
-_TF_X_OFFSET   = -2.0     # m — for future use if needed to align with map frame better
-_TF_Y_OFFSET   = -2.0     # m — for future use if needed to align with map frame better
+_TF_YAW_OFFSET = 0.0    # rad ≈ 1.15°
+_TF_X_OFFSET   = 0.0     # m — for future use if needed to align with map frame better
+_TF_Y_OFFSET   = 0.0     # m — for future use if needed to align with map frame better
+
+STARTING_SIDE = 'left'  # initial pose seed
 
 
 # ── Map loader ────────────────────────────────────────────────────────────────
@@ -235,11 +237,12 @@ def _score_square_pose(scan_pts, field_size, rx, ry, theta):
     x = c * scan_pts[:, 0] - s * scan_pts[:, 1] + rx
     y = s * scan_pts[:, 0] + c * scan_pts[:, 1] + ry
 
+    half = field_size * 0.5
     d = np.minimum.reduce([
-        np.abs(x),
-        np.abs(field_size - x),
-        np.abs(y),
-        np.abs(field_size - y),
+        np.abs(x + half),
+        np.abs(half - x),
+        np.abs(y + half),
+        np.abs(half - y),
     ])
     inliers = d < _WALL_INLIER_THRESH
     return int(np.sum(inliers))
@@ -279,8 +282,8 @@ def _estimate_square_pose_ransac(scan_pts, field_size, seed=None, prev_pose=None
         v_min, v_max = np.percentile(v, [4.0, 96.0])
 
         # Fit square tightly to map-frame center (L/2, L/2).
-        rx = field_size * 0.5 - 0.5 * (u_min + u_max)
-        ry = field_size * 0.5 - 0.5 * (v_min + v_max)
+        rx = -0.5 * (u_min + u_max)
+        ry = -0.5 * (v_min + v_max)
 
         span_err = abs((u_max - u_min) - field_size) + abs((v_max - v_min) - field_size)
         wall_score = _score_square_pose(scan_pts, field_size, rx, ry, theta)
@@ -295,7 +298,7 @@ def _estimate_square_pose_ransac(scan_pts, field_size, seed=None, prev_pose=None
         elif prev_pose is not None:
             px, py, pth = prev_pose
             score -= 1.0 * abs(_wrap_pi(theta - pth))
-            score -= 4.0 * math.hypot(rx - px, ry - py)
+            # score -= 4.0 * math.hypot(rx - px, ry - py)
 
         if score > best_score:
             best_score = score
@@ -317,7 +320,7 @@ class LidarLocalizer(Node):
                           ('map_frame',  'map'),
                           ('field_size', 4.0),
                           ('map_path',   ''),
-                          ('seed_side',  'right')]:
+                          ('seed_side',  STARTING_SIDE)]:
             self.declare_parameter(name, val)
 
         self.field      = self.get_parameter('field_size').value
@@ -365,10 +368,8 @@ class LidarLocalizer(Node):
             'right': (-2.0, -2.0),
             'left': (-2.0, 2.0),
         }
-        if self.seed_side not in seed_map:
-            # self.get_logger().warning(
-            #     f"Unknown seed_side '{self.seed_side}', defaulting to 'right'")
-            self.seed_side = 'right'
+        
+        self.seed_side = STARTING_SIDE
         return seed_map[self.seed_side]
 
     def _source_pkg_dir(self):

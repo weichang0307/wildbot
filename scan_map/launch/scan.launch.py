@@ -8,13 +8,15 @@ def generate_launch_description():
             executable='lidar_mapper.py',
             name='lidar_mapper',
             output='screen',
+            sigterm_timeout='30.0',
+            sigkill_timeout='35.0',
             parameters=[{
                 'scan_topic': '/scan',
                 'base_frame': 'car_base',
                 'map_frame':  'map',
                 'field_size': 4.0,
                 'resolution': 0.01,
-                'margin':     0.1,
+                'margin':     4.0,
             }]
         )
     ])

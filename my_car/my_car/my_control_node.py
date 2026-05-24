@@ -73,8 +73,8 @@ class MyControlNode(Node):
         self.auto_drive = False
         self.base_speed = 500.0
         self.rotate_speed = 700.0
-        self.lin_vel_scale = 0.2
-        self.ang_vel_scale = 0.4
+        self.lin_vel_scale = 0.35
+        self.ang_vel_scale = 1.0
         # self.lin_vel_scale = 1.2
         # self.ang_vel_scale = 2.0
         self.lin_vel = 0.0

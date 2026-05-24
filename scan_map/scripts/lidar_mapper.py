@@ -45,22 +45,22 @@ def _estimate_initial_pose(pts, field_size):
     aligned with the robot's starting orientation; map_processor.py snaps the
     final map back to canonical axes via wall template matching.
     """
-    angles = np.arctan2(pts[:, 1], pts[:, 0])
-    ranges = np.hypot(pts[:, 0], pts[:, 1])
+    # angles = np.arctan2(pts[:, 1], pts[:, 0])
+    # ranges = np.hypot(pts[:, 0], pts[:, 1])
 
-    def wall_dist(target, tol=0.15):
-        diff = np.abs(np.arctan2(np.sin(angles - target), np.cos(angles - target)))
-        mask = diff < tol
-        return float(np.median(ranges[mask])) if np.sum(mask) >= 3 else None
+    # def wall_dist(target, tol=0.15):
+    #     diff = np.abs(np.arctan2(np.sin(angles - target), np.cos(angles - target)))
+    #     mask = diff < tol
+    #     return float(np.median(ranges[mask])) if np.sum(mask) >= 3 else None
 
-    d_back  = wall_dist(math.pi)
-    d_front = wall_dist(0.0)
-    d_right = wall_dist(-math.pi / 2)
-    d_left  = wall_dist(math.pi / 2)
+    # d_back  = wall_dist(math.pi)
+    # d_front = wall_dist(0.0)
+    # d_right = wall_dist(-math.pi / 2)
+    # d_left  = wall_dist(math.pi / 2)
 
-    rx = d_back  if d_back  is not None else (field_size - d_front if d_front is not None else field_size / 2)
-    ry = d_right if d_right is not None else (field_size - d_left  if d_left  is not None else field_size / 2)
-    return rx, ry, 0.0
+    # rx = d_back  if d_back  is not None else (field_size - d_front if d_front is not None else field_size / 2)
+    # ry = d_right if d_right is not None else (field_size - d_left  if d_left  is not None else field_size / 2)
+    return 0.0, 0.0, 0.0
 
 
 def _voxel_downsample(points, voxel_size=_VOXEL_SIZE):
@@ -146,7 +146,7 @@ class LidarMapper(Node):
     def __init__(self):
         super().__init__('lidar_mapper')
         for name, val in [('scan_topic', '/scan'), ('base_frame', 'car_base'),
-                          ('map_frame',  'map'),   ('field_size', 4.0),
+                          ('map_frame',  'map'),   ('field_size', 6.0),
                           ('resolution', 0.01),   ('margin',     2.0)]:
             self.declare_parameter(name, val)
 

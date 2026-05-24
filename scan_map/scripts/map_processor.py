@@ -30,13 +30,6 @@ def load_scaled_template(filename, target_res):
     return cv2.resize(img, (w, h), interpolation=cv2.INTER_NEAREST)
 
 
-def create_wall_template(size=FIELD_SIZE, thickness=0.1, res=FINAL_RES):
-    p_size, p_thick = int(size / res), int(thickness / res)
-    img = np.zeros((p_size + p_thick*2, p_size + p_thick*2), dtype=np.uint8)
-    cv2.rectangle(img, (p_thick, p_thick), (p_size+p_thick, p_size+p_thick), 255, p_thick)
-    return img
-
-
 def rotate_template_bound(template, angle):
     h, w = template.shape
     cx, cy = w / 2.0, h / 2.0
@@ -49,22 +42,100 @@ def rotate_template_bound(template, angle):
     return cv2.warpAffine(template, M, (nw, nh), flags=cv2.INTER_NEAREST, borderValue=0)
 
 
-def fit_template(map_img, template, angles):
-    best_val, best_loc, best_angle = -1.0, (0, 0), 0
-    h, w = template.shape
-    for angle in angles:
-        M       = cv2.getRotationMatrix2D((w//2, h//2), angle, 1.0)
-        rotated = cv2.warpAffine(template, M, (w, h))
-        res     = cv2.matchTemplate(map_img, rotated, cv2.TM_CCOEFF_NORMED)
-        _, max_val, _, max_loc = cv2.minMaxLoc(res)
-        if max_val > best_val:
-            best_val, best_loc, best_angle = max_val, max_loc, angle
-    return best_loc[0] + w//2, best_loc[1] + h//2, best_angle, best_val
+def ransac_detect_walls(binary_map, iterations=2500, threshold=2.0):
+    """
+    Uses RANSAC to greedily extract the 4 dominant wall lines.
+    Computes intersections for the center and averages the 90-degree modulo angles for yaw.
+    """
+    ys, xs = np.where(binary_map > 0)
+    if len(ys) == 0:
+        return binary_map.shape[1]//2, binary_map.shape[0]//2, 0.0, 0.0
+        
+    pts = np.column_stack((xs, ys)).astype(np.float32)
+    lines = []
+    remaining_pts = pts.copy()
+    
+    for _ in range(4):
+        if len(remaining_pts) < 10:
+            break
+            
+        idx1 = np.random.randint(0, len(remaining_pts), iterations)
+        idx2 = np.random.randint(0, len(remaining_pts), iterations)
+        valid = idx1 != idx2
+        p1 = remaining_pts[idx1[valid]]
+        p2 = remaining_pts[idx2[valid]]
+        
+        dx = p2[:, 0] - p1[:, 0]
+        dy = p2[:, 1] - p1[:, 1]
+        norms = np.hypot(dx, dy)
+        valid_norms = norms > 0
+        
+        p1, p2 = p1[valid_norms], p2[valid_norms]
+        dx, dy, norms = dx[valid_norms], dy[valid_norms], norms[valid_norms]
+        
+        nx = -dy / norms
+        ny = dx / norms
+        c = -(nx * p1[:, 0] + ny * p1[:, 1])
+        
+        pts_x = remaining_pts[:, 0][:, np.newaxis]
+        pts_y = remaining_pts[:, 1][:, np.newaxis]
+        dists = np.abs(pts_x * nx + pts_y * ny + c)
+        
+        inliers = dists < threshold
+        inlier_counts = np.sum(inliers, axis=0)
+        
+        best_idx = np.argmax(inlier_counts)
+        best_mask = inliers[:, best_idx]
+        
+        # Refit with SVD for precision on the inliers
+        inlier_pts = remaining_pts[best_mask]
+        if len(inlier_pts) > 2:
+            mean = np.mean(inlier_pts, axis=0)
+            centered = inlier_pts - mean
+            _, _, v = np.linalg.svd(centered)
+            best_nx, best_ny = -v[0, 1], v[0, 0]
+            best_c = -(best_nx * mean[0] + best_ny * mean[1])
+        else:
+            best_nx, best_ny, best_c = nx[best_idx], ny[best_idx], c[best_idx]
+            
+        lines.append((best_nx, best_ny, best_c))
+        remaining_pts = remaining_pts[~best_mask]  # Remove inliers for the next wall
+        
+    if len(lines) < 2:
+         return int(np.mean(pts[:, 0])), int(np.mean(pts[:, 1])), 0.0, 0.0
+         
+    # Compute the global orientation (average angle modulo 90 degrees)
+    angles = [np.arctan2(ny, nx) for nx, ny, c in lines]
+    angles_deg = np.degrees(angles) % 90
+    angles_rad_90 = np.radians(angles_deg * 4) 
+    mean_angle_90 = np.arctan2(np.mean(np.sin(angles_rad_90)), np.mean(np.cos(angles_rad_90)))
+    w_yaw = np.degrees(mean_angle_90 / 4)
+    w_yaw = ((w_yaw + 45) % 90) - 45
+    
+    # Compute intersections of non-parallel lines to find the center
+    corners = []
+    for i in range(len(lines)):
+        for j in range(i + 1, len(lines)):
+            nx1, ny1, c1 = lines[i]
+            nx2, ny2, c2 = lines[j]
+            det = nx1 * ny2 - ny1 * nx2
+            if abs(det) > 0.5:  # Intersect if lines are roughly orthogonal
+                x = (ny1 * c2 - ny2 * c1) / det
+                y = (nx2 * c1 - nx1 * c2) / det
+                corners.append((x, y))
+                
+    corners = np.array(corners)
+    if len(corners) > 0:
+        w_cx, w_cy = np.median(corners[:, 0]), np.median(corners[:, 1])
+    else:
+        w_cx, w_cy = np.mean(pts[:, 0]), np.mean(pts[:, 1])
+        
+    return int(w_cx), int(w_cy), w_yaw, 1.0
 
 
 def fit_template_overlap(map_img, template, angles, scales=(1.0,)):
     map01 = (map_img > 0).astype(np.float32)
-    best = (-np.inf, 0, 0, 0, None)  # score, cx, cy, angle, rotated
+    best = (-np.inf, 0, 0, 0, None) 
     for scale in scales:
         tpl = template if scale == 1.0 else cv2.resize(
             template, (max(1, int(round(template.shape[1]*scale))),
@@ -86,20 +157,17 @@ def fit_template_overlap(map_img, template, angles, scales=(1.0,)):
 
 
 def detect_square_pyramid(search_map, template):
-    # Convert the solid template into a 3-sided (U-shaped) outline
     h, w = template.shape
     u_template = np.zeros((h, w), dtype=np.uint8)
-    t = 2  # 2-pixel thickness to match your other hollow shapes
+    t = 2 
     
-    u_template[:t, :] = 255      # Top edge
-    u_template[:, :t] = 255      # Left edge
-    u_template[:, -t:] = 255     # Right edge
-    # Bottom edge is deliberately left open (0)
+    u_template[:t, :] = 255      
+    u_template[:, :t] = 255      
+    u_template[:, -t:] = 255     
     
     map01 = (search_map > 0).astype(np.float32)
     best = (-np.inf, 0, 0, 0, None)
     
-    # A 3-sided shape is not 90-degree symmetric, so we must scan the full 360 degrees
     for angle in range(0, 360, 2):
         rot = rotate_template_bound(u_template, angle)
         rot01 = (rot > 0).astype(np.float32)
@@ -151,17 +219,32 @@ def main():
     raw_map = cv2.imread(RAW_MAP, cv2.IMREAD_GRAYSCALE)
     if raw_map is None:
         raise FileNotFoundError(f"raw_map.pgm not found at {RAW_MAP}")
+    
+    # --- NEW: Crop away all unvisited gray space (value 205) ---
+    mapped_pixels = np.where(raw_map != 205)
+    if len(mapped_pixels[0]) > 0:
+        y1, y2 = np.min(mapped_pixels[0]), np.max(mapped_pixels[0])
+        x1, x2 = np.min(mapped_pixels[1]), np.max(mapped_pixels[1])
+        
+        # Add a small 10px buffer so we don't clip the edges
+        h_raw, w_raw = raw_map.shape
+        y1, y2 = max(0, y1 - 10), min(h_raw, y2 + 10)
+        x1, x2 = max(0, x1 - 10), min(w_raw, x2 + 10)
+        
+        raw_map = raw_map[y1:y2, x1:x2]
+        print(f"[map_processor] Cropped raw_map to mapped bounds: {raw_map.shape}")
+    # -----------------------------------------------------------
 
     _, binary_map = cv2.threshold(raw_map, 200, 255, cv2.THRESH_BINARY_INV)
     object_map = binary_map.copy()
     wall_map   = cv2.dilate(binary_map, np.ones((5, 5), np.uint8))
 
-    wall_tmp = create_wall_template()
-    w_cx, w_cy, w_yaw, w_score = fit_template(wall_map, wall_tmp, range(0, 90, 1))
-    w_yaw = ((w_yaw + 45) % 90) - 45  # normalize 90° symmetry
-    print(f'[map_processor] Wall fit: center=({w_cx},{w_cy}) yaw={w_yaw}° score={w_score:.3f}')
+    # Replaced Template Matching with RANSAC
+    w_cx, w_cy, w_yaw, w_score = ransac_detect_walls(wall_map)
+    print(f'[map_processor] RANSAC Wall fit: center=({w_cx},{w_cy}) yaw={w_yaw:.2f}°')
 
     h_img, w_img = object_map.shape
+    # This aligns the entire map using the RANSAC orientation BEFORE finding inner objects
     M_align = cv2.getRotationMatrix2D((w_cx, w_cy), w_yaw, 1.0)
     aligned_map = cv2.warpAffine(object_map, M_align, (w_img, h_img), flags=cv2.INTER_NEAREST)
 
@@ -183,7 +266,6 @@ def main():
     ]
     bridge_scales = np.round(np.arange(0.85, 1.55, 0.05), 2)
 
-    # Canvas: arena interior (free=255) surrounded by 0.2 m solid wall (occupied=0)
     canvas_size = pixels + 2 * margin
     planner_canvas = np.zeros((canvas_size, canvas_size), dtype=np.uint8)
     lidar_canvas   = np.zeros((canvas_size, canvas_size), dtype=np.uint8)
@@ -242,7 +324,6 @@ def main():
         draw_on_map(lidar_canvas,   run_tmp,  px_x, px_y, rel_yaw)
         draw_on_map(planner_canvas, base_tmp, px_x, px_y, rel_yaw)
 
-    # resize planner map to PLANNER_RES for efficient pathfinding
     scale = FINAL_RES / PLANNER_RES
     new_size = (int(planner_canvas.shape[1] * scale), int(planner_canvas.shape[0] * scale))
     planner_canvas = cv2.resize(planner_canvas, new_size, interpolation=cv2.INTER_NEAREST)
@@ -255,7 +336,6 @@ def main():
     cv2.imwrite(os.path.join(MAP_DIR, "planner_map.pgm"), planner_canvas)
     cv2.imwrite(os.path.join(MAP_DIR, "lidar_map.pgm"),   lidar_canvas)
 
-    wall_m = margin * FINAL_RES
     yaml_lidar = {"resolution": FINAL_RES, "image": "lidar_map.pgm", "origin": [-2.1, -2.1, 0.0],
                  "occupied_thresh": 0.65, "free_thresh": 0.25, "negate": 0}
     yaml_planner = {"resolution": PLANNER_RES, "image": "planner_map.pgm", "origin": [-2.1, -2.1, 0.0],
