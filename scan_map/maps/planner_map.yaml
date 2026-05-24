@@ -1,0 +1,9 @@
+free_thresh: 0.25
+image: planner_map.pgm
+negate: 0
+occupied_thresh: 0.65
+origin:
+- -2.1
+- -2.1
+- 0.0
+resolution: 0.1

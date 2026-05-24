@@ -26,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'run = my_car.main:main',
+            'car_controller = my_car.my_control_node:main',
             'urdf_publisher = my_car.urdf_publisher_node:main',
             'map_publisher = my_car.map_publisher_node:main',
             'astar_planner = my_car.astar_planner_node:main',

@@ -629,3 +629,14 @@ class MyControlNode(Node):
         self.listener.stop()
         super().destroy_node()
 
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MyControlNode()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
