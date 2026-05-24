@@ -17,7 +17,7 @@ def main(args=None):
     nodes.append(MyYoloNode())
     nodes.append(MyControlNode())
     nodes.append(UrdfPublisherNode())
-    nodes.append(MapPublisherNode())
+    # nodes.append(MapPublisherNode())
     nodes.append(AStarPlannerNode())
     # nodes.append(RRTStarPlannerNode())
     nodes.append(BearMapNode())

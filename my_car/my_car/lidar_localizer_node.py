@@ -340,11 +340,11 @@ class LidarLocalizer(Node):
         self._occ, self._score_map, w, h, self._res, self._ox, self._oy = \
             _load_map(map_path)
         self._pixels = h
-        self.get_logger().info(
-            f'Map loaded: {map_path} ({w}×{h} px, res={self._res*1e3:.1f} mm, '
-            f'origin=({self._ox},{self._oy}))')
+        # self.get_logger().info(
+        #     f'Map loaded: {map_path} ({w}×{h} px, res={self._res*1e3:.1f} mm, '
+        #     f'origin=({self._ox},{self._oy}))')
         
-        self.get_logger().info('Waiting for TF to resolve scan → base transform...')
+        # self.get_logger().info('Waiting for TF to resolve scan → base transform...')
 
         self.create_subscription(
             LaserScan,
@@ -354,11 +354,11 @@ class LidarLocalizer(Node):
         self.pub = self.create_publisher(PoseWithCovarianceStamped, '/pose', 10)
 
         # Publish the reference map as OccupancyGrid for Foxglove visualisation
-        self._map_pub = self.create_publisher(OccupancyGrid, '/map', 1)
+        self._map_pub = self.create_publisher(OccupancyGrid, '/obstacle_map', 1)
         self._map_msg = self._make_map_msg()
         self.create_timer(1.0, self._pub_map)
 
-        self.get_logger().info('LidarLocalizer ready')
+        # self.get_logger().info('LidarLocalizer ready')
 
     def _seed_pose(self):
         seed_map = {
@@ -366,8 +366,8 @@ class LidarLocalizer(Node):
             'left': (-2.0, 2.0),
         }
         if self.seed_side not in seed_map:
-            self.get_logger().warning(
-                f"Unknown seed_side '{self.seed_side}', defaulting to 'right'")
+            # self.get_logger().warning(
+            #     f"Unknown seed_side '{self.seed_side}', defaulting to 'right'")
             self.seed_side = 'right'
         return seed_map[self.seed_side]
 
@@ -423,9 +423,9 @@ class LidarLocalizer(Node):
         yaw = math.atan2(2.0 * (q.w * q.z + q.x * q.y),
                          1.0 - 2.0 * (q.y * q.y + q.z * q.z))
         self.scan_to_base = (t.x, t.y, yaw)
-        self.get_logger().info(
-            f'TF {scan_frame} → {self.base_frame}: '
-            f'dx={t.x:.3f} dy={t.y:.3f} dyaw={yaw:.3f}')
+        # self.get_logger().info(
+        #     f'TF {scan_frame} → {self.base_frame}: '
+        #     f'dx={t.x:.3f} dy={t.y:.3f} dyaw={yaw:.3f}')
         return True
 
     # ── Scan callback ─────────────────────────────────────────────────────────
@@ -487,9 +487,9 @@ class LidarLocalizer(Node):
 
         self._pose = best_pose
         rx, ry, theta = self._pose
-        self.get_logger().info(
-            f'RANSAC init at ({rx:.2f}, {ry:.2f})  θ={math.degrees(theta):.1f}°  '
-            f'score={best_score}')
+        # self.get_logger().info(
+        #     f'RANSAC init at ({rx:.2f}, {ry:.2f})  θ={math.degrees(theta):.1f}°  '
+        #     f'score={best_score}')
         self._publish(rx, ry, theta, stamp)
         self._broadcast_tf(rx, ry, theta, stamp)
 
@@ -510,7 +510,7 @@ class LidarLocalizer(Node):
         if pose is None:
             return
         
-        self.get_logger().info(f'Score: {score} (pose candidate: {pose})')
+        # self.get_logger().info(f'Score: {score} (pose candidate: {pose})')
         self._pose = pose
 
         # if score >= _MIN_SCORE:

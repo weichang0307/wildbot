@@ -11,6 +11,7 @@ RAW_MAP = os.path.join(MAP_DIR, "raw_map.pgm")
 
 TPL_RES   = 0.001
 FINAL_RES = 0.01
+PLANNER_RES = 0.1
 FIELD_SIZE = 4.0
 
 
@@ -224,6 +225,11 @@ def main():
         draw_on_map(lidar_canvas,   run_tmp,  px_x, px_y, rel_yaw)
         draw_on_map(planner_canvas, base_tmp, px_x, px_y, rel_yaw)
 
+    # resize planner map to PLANNER_RES for efficient pathfinding
+    scale = FINAL_RES / PLANNER_RES
+    new_size = (int(planner_canvas.shape[1] * scale), int(planner_canvas.shape[0] * scale))
+    planner_canvas = cv2.resize(planner_canvas, new_size, interpolation=cv2.INTER_NEAREST)
+
     with open(os.path.join(MAP_DIR, "landmarks.csv"), 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["Object_Type", "X", "Y", "Yaw_Degrees"])
@@ -233,12 +239,16 @@ def main():
     cv2.imwrite(os.path.join(MAP_DIR, "lidar_map.pgm"),   lidar_canvas)
 
     wall_m = margin * FINAL_RES
-    yaml_base = {"resolution": FINAL_RES, "origin": [-2.1, -2.1, 0.0],
+    yaml_lidar = {"resolution": FINAL_RES, "image": "lidar_map.pgm", "origin": [-2.1, -2.1, 0.0],
                  "occupied_thresh": 0.65, "free_thresh": 0.25, "negate": 0}
-    for nm in ["planner_map", "lidar_map"]:
-        with open(os.path.join(MAP_DIR, f"{nm}.yaml"), 'w') as f:
-            yaml.dump({**yaml_base, "image": f"{nm}.pgm"}, f, default_flow_style=False)
-
+    yaml_planner = {"resolution": PLANNER_RES, "image": "planner_map.pgm", "origin": [-2.1, -2.1, 0.0],
+                 "occupied_thresh": 0.65, "free_thresh": 0.25, "negate": 0}
+    
+    with open(os.path.join(MAP_DIR, "lidar_map.yaml"), 'w') as f:
+        yaml.dump(yaml_lidar, f, default_flow_style=False)
+    with open(os.path.join(MAP_DIR, "planner_map.yaml"), 'w') as f:
+        yaml.dump(yaml_planner, f, default_flow_style=False)
+        
     print(f"Done — landmarks, planner_map, lidar_map written to {MAP_DIR}")
 
 
