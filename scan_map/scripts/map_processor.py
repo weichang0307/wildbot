@@ -86,24 +86,41 @@ def fit_template_overlap(map_img, template, angles, scales=(1.0,)):
 
 
 def detect_square_pyramid(search_map, template):
-    tpl_area = float(template.shape[0] * template.shape[1])
-    contours, _ = cv2.findContours(search_map, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best = None
-    for cnt in contours:
-        (cx, cy), (w, h), angle = cv2.minAreaRect(cnt)
-        box_area = w * h
-        if not (0.25 * tpl_area < box_area < 4.0 * tpl_area):
+    # Convert the solid template into a 3-sided (U-shaped) outline
+    h, w = template.shape
+    u_template = np.zeros((h, w), dtype=np.uint8)
+    t = 2  # 2-pixel thickness to match your other hollow shapes
+    
+    u_template[:t, :] = 255      # Top edge
+    u_template[:, :t] = 255      # Left edge
+    u_template[:, -t:] = 255     # Right edge
+    # Bottom edge is deliberately left open (0)
+    
+    map01 = (search_map > 0).astype(np.float32)
+    best = (-np.inf, 0, 0, 0, None)
+    
+    # A 3-sided shape is not 90-degree symmetric, so we must scan the full 360 degrees
+    for angle in range(0, 360, 2):
+        rot = rotate_template_bound(u_template, angle)
+        rot01 = (rot > 0).astype(np.float32)
+        denom = float(rot01.sum())
+        
+        if denom == 0 or rot.shape[0] > map01.shape[0] or rot.shape[1] > map01.shape[1]:
             continue
-        if min(w, h) < 1 or min(w, h) / max(w, h) < 0.55:
-            continue
-        score = 1.0 - abs(box_area - tpl_area) / tpl_area
-        if best is None or score > best[0]:
-            best = (score, cx, cy, angle)
-    if best is None:
+            
+        resp = cv2.matchTemplate(map01, rot01, cv2.TM_CCORR) / denom
+        _, score, _, loc = cv2.minMaxLoc(resp)
+        
+        if score > best[0]:
+            rh, rw = rot.shape
+            best = (score, loc[0] + rw//2, loc[1] + rh//2, angle, rot)
+            
+    score, cx, cy, angle, rotated = best
+    
+    if score < 0.10:
         return None
-    score, cx, cy, angle = best
-    yaw = float((-angle) % 90)
-    return int(round(cx)), int(round(cy)), yaw, score, rotate_template_bound(template, yaw)
+        
+    return int(round(cx)), int(round(cy)), float(angle), score, rotated
 
 
 def erase_rotated_footprint(map_img, rotated_template, cx, cy, pad=6):
@@ -135,7 +152,7 @@ def main():
     if raw_map is None:
         raise FileNotFoundError(f"raw_map.pgm not found at {RAW_MAP}")
 
-    _, binary_map = cv2.threshold(raw_map, 230, 255, cv2.THRESH_BINARY_INV)
+    _, binary_map = cv2.threshold(raw_map, 200, 255, cv2.THRESH_BINARY_INV)
     object_map = binary_map.copy()
     wall_map   = cv2.dilate(binary_map, np.ones((5, 5), np.uint8))
 
@@ -195,8 +212,8 @@ def main():
                 search_map, scan_tmp, range(0, 360, 2), scales=bridge_scales)
 
         print(f'[map_processor] {name}: center=({cx},{cy}) yaw={oyaw}° score={score:.3f}')
-        if score < 0.30:
-            print(f'[map_processor] {name}: score below 0.30, skipping')
+        if score < 0.10:
+            print(f'[map_processor] {name}: score below 0.10, skipping')
             continue
 
         if rotated is not None:

@@ -182,7 +182,7 @@ class LidarMapper(Node):
             self._on_scan,
             qos_profile_sensor_data,
         )
-        self.pub = self.create_publisher(OccupancyGrid, '/map', 1)
+        self.pub = self.create_publisher(OccupancyGrid, '/scan_map', 1)
         self.create_service(Trigger, '/save_map', self._save_cb)
         self.create_timer(0.2, self._publish_map)
 
