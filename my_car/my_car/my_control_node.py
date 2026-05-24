@@ -44,7 +44,7 @@ class MyControlNode(Node):
             10)
         self.ir_distance_sub = self.create_subscription(
             Int32,
-            '/laser_distance_mm',
+            '/sensor/laser',
             self.ir_distance_callback,
             10)
         self.path_sub = self.create_subscription(
@@ -192,7 +192,7 @@ class MyControlNode(Node):
             return
 
         distance = msg.data / 1000.0
-        threshold = 0.1  # Set a threshold for obstacle avoidance
+        threshold = 0.07  # Set a threshold for obstacle avoidance
         # print(f"IR Distance: {distance:.2f} m")
 
         
