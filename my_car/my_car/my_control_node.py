@@ -159,8 +159,8 @@ class MyControlNode(Node):
         self.keys.add(k)
         if k == 'q': # Toggle Auto-Drive mode
             self.auto_drive = not self.auto_drive
-            # self.state = STATE.FINDING
-            self.state = STATE.APPROACH
+            self.state = STATE.FINDING
+            # self.state = STATE.APPROACH
             mode = "AUTO" if self.auto_drive else "MANUAL"
             self.get_logger().info(f"Mode switched to: {mode}")
         elif k == 'c':

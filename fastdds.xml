@@ -9,7 +9,7 @@
 
     <participant profile_name="participant_profile" is_default_profile="true">
         <rtps>
-            <useBuiltinTransports>false</useBuiltinTransports>
+            <useBuiltinTransports>true</useBuiltinTransports>
             <userTransports>
                 <transport_id>shm_transport</transport_id>
             </userTransports>

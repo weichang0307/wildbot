@@ -4,7 +4,7 @@
 #
 # Uses the installed package path (consistent with where lidar_mapper writes maps).
 
-source /opt/ros/humble/setup.bash
+source /opt/ros/jazzy/setup.bash
 source /ros2_ws/install/setup.bash
 
 MAP_DIR=$(python3 -c "from ament_index_python.packages import get_package_share_directory; print(get_package_share_directory('scan_map'))")/maps
