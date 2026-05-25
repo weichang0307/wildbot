@@ -11,6 +11,10 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/urdf', ['my_car/wildbot.urdf']),
+        ('share/' + package_name + '/launch', [
+            'launch/scan.launch.py',
+            'launch/run.launch.py',
+        ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,12 +30,15 @@ setup(
     entry_points={
         'console_scripts': [
             'run = my_car.main:main',
+            'run_scan = my_car.main_scan:main',
             'car_controller = my_car.my_control_node:main',
             'urdf_publisher = my_car.urdf_publisher_node:main',
             'map_publisher = my_car.map_publisher_node:main',
+            'goal_selector = my_car.goal_selector_node:main',
             'astar_planner = my_car.astar_planner_node:main',
             'rrt_star_planner = my_car.rrt_star_planner_node:main',
             'bear_map_node = my_car.bear_map_node:main',
+            'imu_odometry = my_car.imu_odometry_node:main',
         ],
     },
 )

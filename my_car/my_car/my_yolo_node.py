@@ -3,11 +3,9 @@ from rclpy.node import Node
 from rclpy.time import Time
 from geometry_msgs.msg import Point32
 from sensor_msgs.msg import Image, CompressedImage, PointCloud, CameraInfo
-from std_msgs.msg import Header
 from tf2_ros import Buffer, TransformException, TransformListener
 from vision_msgs.msg import Detection2DArray, Detection2D, ObjectHypothesisWithPose
 from visualization_msgs.msg import Marker, MarkerArray
-import cv2
 from cv_bridge import CvBridge
 from ultralytics import YOLO
 
@@ -72,7 +70,6 @@ class MyYoloNode(Node):
         self.get_logger().info(f"YOLO model is running on device: {self.model.device}")
 
     def camera_info_callback(self, msg):
-        # Camera qqdwwwwwwssssssrix K is row-major: [fx, 0, cx, 0, fy, cy, 0, 0, 1]
         if len(msg.k) >= 6 and msg.k[0] > 0.0 and msg.k[4] > 0.0:
             self._camera_fx = float(msg.k[0])
             self._camera_fy = float(msg.k[4])

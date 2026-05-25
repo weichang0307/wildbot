@@ -5,11 +5,11 @@ from my_car.my_yolo_node import MyYoloNode
 from my_car.my_control_node import MyControlNode
 from my_car.urdf_publisher_node import UrdfPublisherNode
 from my_car.map_publisher_node import MapPublisherNode
-from my_car.goal_selector_node import GoalSelectorNode
 from my_car.astar_planner_node import AStarPlannerNode
 from my_car.rrt_star_planner_node import RRTStarPlannerNode
 from my_car.bear_map_node import BearMapNode
 from my_car.lidar_localizer_node import LidarLocalizer
+from my_car.imu_odometry_node import ImuOdometryNode
 
 def main(args=None):
     rclpy.init(args=args)
@@ -19,12 +19,11 @@ def main(args=None):
     nodes.append(MyControlNode())
     nodes.append(UrdfPublisherNode())
     # nodes.append(MapPublisherNode())
-    nodes.append(GoalSelectorNode())
-    nodes.append(AStarPlannerNode())
+    # nodes.append(AStarPlannerNode())
     # nodes.append(RRTStarPlannerNode())
     nodes.append(BearMapNode())
     # nodes.append(ImuOdometryNode())
-    nodes.append(LidarLocalizer())
+    # nodes.append(LidarLocalizer())
 
     executor = MultiThreadedExecutor()
 
