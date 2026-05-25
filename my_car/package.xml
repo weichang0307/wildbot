@@ -26,6 +26,11 @@
   <exec_depend>opencv-python</exec_depend>
   <exec_depend>ultralytics</exec_depend>
   <exec_depend>scan_map</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
+  <exec_depend>nav2_planner</exec_depend>
+  <exec_depend>nav2_navfn_planner</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>nav2_costmap_2d</exec_depend>
 
 
   <export>

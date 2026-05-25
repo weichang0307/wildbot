@@ -11,7 +11,7 @@ RAW_MAP = os.path.join(MAP_DIR, "raw_map.pgm")
 
 TPL_RES   = 0.001
 FINAL_RES = 0.01
-PLANNER_RES = 0.1
+PLANNER_RES = 0.05
 FIELD_SIZE = 4.0
 
 

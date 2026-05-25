@@ -15,6 +15,9 @@ setup(
             'launch/scan.launch.py',
             'launch/run.launch.py',
         ]),
+        ('share/' + package_name + '/config', [
+            'config/nav2_params.yaml',
+        ]),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -39,6 +42,8 @@ setup(
             'rrt_star_planner = my_car.rrt_star_planner_node:main',
             'bear_map_node = my_car.bear_map_node:main',
             'imu_odometry = my_car.imu_odometry_node:main',
+            'pointcloud_obstacle_map = my_car.pointcloud_obstacle_map_node:main',
+            'fused_obstacle_map = my_car.fused_obstacle_map_node:main',
         ],
     },
 )

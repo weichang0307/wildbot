@@ -10,6 +10,8 @@ from my_car.astar_planner_node import AStarPlannerNode
 from my_car.rrt_star_planner_node import RRTStarPlannerNode
 from my_car.bear_map_node import BearMapNode
 from my_car.lidar_localizer_node import LidarLocalizer
+from my_car.pointcloud_obstacle_map_node import PointCloudObstacleMapNode
+from my_car.fused_obstacle_map_node import FusedObstacleMapNode
 
 def main(args=None):
     rclpy.init(args=args)
@@ -25,6 +27,8 @@ def main(args=None):
     nodes.append(BearMapNode())
     # nodes.append(ImuOdometryNode())
     nodes.append(LidarLocalizer())
+    nodes.append(PointCloudObstacleMapNode())
+    nodes.append(FusedObstacleMapNode())
 
     executor = MultiThreadedExecutor()
 

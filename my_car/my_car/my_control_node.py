@@ -1,5 +1,6 @@
 import math
 import os
+import time as _time
 import cv2
 from datetime import datetime
 
@@ -13,7 +14,7 @@ from enum import Enum
 from std_msgs.msg import String, Empty, Int32
 from sensor_msgs.msg import Image, PointCloud
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import TwistStamped, PoseStamped
 from nav_msgs.msg import Path, OccupancyGrid
 
 
@@ -24,6 +25,11 @@ class State(Enum):
     CLAMP    = 3
     LIFT     = 4
     RELEASE  = 5
+    FINISH        = 6
+    FINISH_ADJUST = 7
+    FINISH_PARK   = 8
+    FINISH_UNSTOCK = 9
+    FINISH_STOP   = 10
 
 
 class MyControlNode(Node):
@@ -35,40 +41,49 @@ class MyControlNode(Node):
     _ADJUST_TIMEOUT_NS  = 5_000_000_000  # 5 s
     _ALIGN_STEADY_NS    = 1_000_000_000  # 1 s heading steady before APPROACH
     _ARM_TRAJ_NS        = 100_000_000    # 100 ms arm trajectory duration
+    _FINISH_UNSTOCK_NS         = 5_000_000_000   # total duration of FINISH_UNSTOCK
+    _FINISH_UNSTOCK_HALF_NS    =   250_000_000   # half-period at 2 Hz (forward / backward)
     # ------------------------------------------------------------------ distances
     _CLAMP_TRIGGER_M    = 0.07   # IR reading that triggers clamp
+    _FINISH_PARK_DIST_M = 0.3    # back up until this close to the face-away zone
 
     def __init__(self):
         super().__init__('my_control_node')
 
+        self.declare_parameter('start_side', 'right')  # 'right' → (-1.65,-1.4), 'left' → (1.65,-1.4)
+
         # Publishers
-        self.wheel_pub       = self.create_publisher(TwistStamped,   '/base_controller/cmd_vel',          10)
-        self.arm_pub         = self.create_publisher(JointTrajectory, '/arm_controller/joint_trajectory',  10)
-        self.state_pub       = self.create_publisher(String,          '/my_control/state',                 10)
+        self.wheel_pub        = self.create_publisher(TwistStamped,   '/base_controller/cmd_vel',          10)
+        self.arm_pub          = self.create_publisher(JointTrajectory, '/arm_controller/joint_trajectory',  10)
+        self.state_pub        = self.create_publisher(String,          '/my_control/state',                 10)
         self.bear_clamped_pub = self.create_publisher(Empty,          '/bear_map/remove_clamped',          10)
+        self.goal_pub         = self.create_publisher(PoseStamped,    'move_base_simple/goal',             10)
+        self.block_zone_pub   = self.create_publisher(PoseStamped,    '/nav/block_zone',                   10)
 
         # Subscribers
         self.create_subscription(Int32,        '/sensor/laser',            self._on_ir_distance,    10)
         self.create_subscription(Path,         '/astar_path',              self._on_path,           10)
-        self.create_subscription(OccupancyGrid,'/obstacle_map',            self._on_obstacle_map,   10)
+        self.create_subscription(OccupancyGrid,'/fused_obstacle_map',       self._on_obstacle_map,   10)
         self.create_subscription(PointCloud,   '/bear_map',                self._on_bear_map,       10)
         self.create_subscription(Image,        '/camera/color/image_raw',  self._on_image,          10)
 
         # Navigation tuning
         self.lin_vel_scale              = 0.35
         self.ang_vel_scale              = 1.0
+        self.approach_vel               = 0.1
         self.arm_speed                  = 5.0   # deg per timer tick
         self.path_waypoint_tolerance    = 0.3   # m
         self.path_goal_tolerance        = 0.3   # m
         self.path_heading_gain          = 3.0
         self.path_linear_speed          = 0.3   # m/s
         self.path_max_angular_speed     = 1.2   # rad/s
-        self.path_long_distance_threshold = 0.15  # m
+        self.path_long_distance_threshold = 0.5  # m
         self.adjust_heading_tolerance   = 0.08  # rad
+        self.adjust_max_bear_distance     = 1.0   # m — only enter ADJUST if bear is this close
         self.approach_max_target_distance = 10.0  # m — abort if bear too far
         self.approach_min_target_distance = 0.07  # m — clamp if bear this close
-        self.approach_front_obstacle_distance = 0.42   # m
-        self.approach_front_check_half_width  = 0.15   # m
+        self.approach_front_obstacle_distance = 0.45   # m
+        self.approach_front_check_half_width  = 0.13 # m — robot half-width
         self.approach_map_occupancy_threshold = 50
         self.robot_frame = 'car_base'
 
@@ -90,11 +105,20 @@ class MyControlNode(Node):
             'clamp':   [3.32, 0.79, 2.90],
             'lift':    [0.79, 1.40, 2.90],
             'release': [0.79, 1.40, 3.57],
+            'finding': [3.32, 0.79, 3.60],
         }
         self.ready_arm_pose_physical   = [math.degrees(a) for a in _poses_rad['ready']]
         self.clamp_arm_pose_physical   = [math.degrees(a) for a in _poses_rad['clamp']]
         self.lift_arm_pose_physical    = [math.degrees(a) for a in _poses_rad['lift']]
         self.release_arm_pose_physical = [math.degrees(a) for a in _poses_rad['release']]
+        self.finding_arm_pose_physical = [math.degrees(a) for a in _poses_rad['finding']]
+        start_side = self.get_parameter('start_side').value
+        self._finish_goal        = (-1.4,  1.4) if start_side == 'right' else (-1.4, -1.4)
+        self._finish_face_away   = (-1.7,  1.7) if start_side == 'right' else (-1.7, -1.7)
+
+        self._pending_block_pos = None   # (x, y) — published to /nav/block_zone once car moves away
+        _BLOCK_ARM_DIST         = 1.0    # m — minimum distance before block becomes active
+        self._block_arm_dist    = _BLOCK_ARM_DIST
 
         # Runtime state
         self.state        = State.FINDING
@@ -125,7 +149,10 @@ class MyControlNode(Node):
         self.kb_listener = keyboard.Listener(on_press=self._on_key_press, on_release=self._on_key_release)
         self.kb_listener.start()
 
+        self._time_file = '/ros2_ws/time.txt'
+
         self.create_timer(0.1, self._control_tick)
+        self.create_timer(5.0, self._check_time_limit)  # 0.2 Hz
 
         self.get_logger().info("Node started — MANUAL mode. 'q' toggles AUTO, WASD to drive.")
 
@@ -141,6 +168,7 @@ class MyControlNode(Node):
         self.keys.add(k)
         if k == 'q':
             self.auto_drive = not self.auto_drive
+            # self.state = State.APPROACH
             self.state = State.FINDING
             self.get_logger().info(f"Mode → {'AUTO' if self.auto_drive else 'MANUAL'}")
         elif k == 'c':
@@ -199,7 +227,11 @@ class MyControlNode(Node):
         self.ang_vel = 0.0
 
         if self.is_obstacle_close_in_front_on_map():
+            self.get_logger().info
+            self.get_logger().warn('Obstacle detected in front on map during APPROACH — clamping')
             self._enter_state(State.CLAMP, now)
+            self.lin_vel = 0.0
+            self.ang_vel = 0.0
             self._publish_clamped_bear()
             return
 
@@ -216,7 +248,7 @@ class MyControlNode(Node):
                 return
 
         if distance_m > self._CLAMP_TRIGGER_M:
-            self.lin_vel = self.lin_vel_scale
+            self.lin_vel = self.approach_vel
         else:
             self._publish_clamped_bear()
             self._enter_state(State.CLAMP, now)
@@ -249,7 +281,18 @@ class MyControlNode(Node):
     # ------------------------------------------------------------------
 
     def _control_tick(self):
-        if self.auto_drive:
+
+        if self.state == State.FINISH:
+            self._finish_drive_tick()
+        elif self.state == State.FINISH_ADJUST:
+            self._finish_adjust_tick()
+        elif self.state == State.FINISH_PARK:
+            self._finish_park_tick()
+        elif self.state == State.FINISH_UNSTOCK:
+            self._finish_unstock_tick()
+        elif self.state == State.FINISH_STOP:
+            self._publish_wheel(0.0, 0.0)
+        elif self.auto_drive:
             self._auto_drive_tick()
         else:
             self._manual_drive_tick()
@@ -259,25 +302,35 @@ class MyControlNode(Node):
         self.state_pub.publish(state_msg)
 
     def _auto_drive_tick(self):
+        
+
         if self.state == State.FINDING:
             if self._is_path_long():
                 self._follow_path()
-            else:
+            elif self.bear_map_points and (
+                (d := self._closest_bear_distance()) is not None
+                and d <= self.adjust_max_bear_distance
+            ):
                 self.lin_vel = 0.0
                 self.ang_vel = 0.0
                 self.adjust_start_time = self.get_clock().now()
                 self.steady_time       = self.get_clock().now()
                 self.state = State.ADJUST
+            else:
+                self._follow_path()  # rotates to search when current_path is empty
         elif self.state == State.ADJUST:
             self._adjust_to_bear()
 
         if self.state in (State.FINDING, State.ADJUST):
-            self.joint_angles_physical = self.ready_arm_pose_physical.copy()
+            self.joint_angles_physical = self.finding_arm_pose_physical.copy()
 
         self._publish_wheel(self.lin_vel, self.ang_vel)
         self._publish_arm(self.joint_angles_physical)
 
     def _manual_drive_tick(self):
+        if self.is_obstacle_close_in_front_on_map():
+            self.get_logger().warn('Obstacle detected in front on map — stopping')
+
         self.lin_vel = 0.0
         self.ang_vel = 0.0
         if 'w' in self.keys: self.lin_vel =  self.lin_vel_scale
@@ -310,6 +363,13 @@ class MyControlNode(Node):
 
         rx, ry, ryaw = robot_pose
 
+        # # No local plan yet — rotate slowly to search
+        # if not self.current_path:
+        #     self.lin_vel = 0.0
+        #     self.ang_vel = self.path_max_angular_speed * 0.4
+        #     return
+
+        # Advance past waypoints already within tolerance
         while self.current_path:
             wx, wy = self.current_path[0]
             tol = self.path_goal_tolerance if len(self.current_path) == 1 else self.path_waypoint_tolerance
@@ -319,16 +379,22 @@ class MyControlNode(Node):
 
         if not self.current_path:
             self.lin_vel = self.ang_vel = 0.0
-            self.get_logger().info('Reached end of path')
             return
 
-        tx, ty = self.current_path[0]
-        heading_err = self._normalize_angle(math.atan2(ty - ry, tx - rx) - ryaw)
-        dist_err    = math.hypot(tx - rx, ty - ry)
+        # Use local_path[1] for heading (direction of travel), fall back to [0]
+        hx, hy = self.current_path[min(1, len(self.current_path) - 1)]
+        heading_err = self._normalize_angle(math.atan2(hy - ry, hx - rx) - ryaw)
 
-        self.ang_vel = max(-self.path_max_angular_speed,
-                           min( self.path_max_angular_speed, self.path_heading_gain * heading_err))
-        self.lin_vel = 0.0 if abs(heading_err) > 0.2 else min(self.path_linear_speed, dist_err)
+        tx, ty = self.current_path[0]
+        if abs(heading_err) > 0.15:
+            self.lin_vel = 0.0
+            self.ang_vel = math.copysign(
+                min(self.path_max_angular_speed, self.path_heading_gain * abs(heading_err)),
+                heading_err,
+            )
+        else:
+            self.lin_vel = min(self.path_linear_speed, math.hypot(tx - rx, ty - ry))
+            self.ang_vel = 0.0
 
     def _is_path_long(self):
         if not self.current_path or not self.path_frame_id:
@@ -347,8 +413,13 @@ class MyControlNode(Node):
             self.lin_vel = self.ang_vel = 0.0
             return
 
+        if not self.bear_map_points:
+            self._enter_finding(now)
+            self.lin_vel = self.ang_vel = 0.0
+            return
+
         robot_pose = self._robot_pose_in(self.bear_map_frame_id)
-        if robot_pose is None or not self.bear_map_points:
+        if robot_pose is None:
             self.lin_vel = self.ang_vel = 0.0
             return
 
@@ -378,8 +449,13 @@ class MyControlNode(Node):
     def is_obstacle_close_in_front_on_map(self):
         if self.obstacle_map_msg is None:
             return False
-        robot_pose = self._robot_pose_in(self.obstacle_map_msg.header.frame_id)
+        frame = self.obstacle_map_msg.header.frame_id or 'map'
+        robot_pose = self._robot_pose_in(frame)
         if robot_pose is None:
+            self.get_logger().warn(
+                f'is_obstacle_close_in_front_on_map: TF lookup failed for frame "{frame}"',
+                throttle_duration_sec=2.0,
+            )
             return False
 
         rx, ry, ryaw = robot_pose
@@ -451,6 +527,118 @@ class MyControlNode(Node):
         self.steady_time     = now
 
     # ------------------------------------------------------------------
+    # Finish navigation
+    # ------------------------------------------------------------------
+
+    def _enter_finish(self):
+        if self.state in (State.FINISH, State.FINISH_ADJUST,
+                          State.FINISH_PARK, State.FINISH_UNSTOCK, State.FINISH_STOP):
+            return
+        self._enter_state(State.FINISH)
+        fx, fy = self._finish_goal
+        msg = PoseStamped()
+        msg.header.stamp    = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'map'
+        msg.pose.position.x = fx
+        msg.pose.position.y = fy
+        msg.pose.orientation.w = 1.0
+        self.goal_pub.publish(msg)
+        self.get_logger().info(f'FINISH: navigating to ({fx}, {fy})')
+
+    _FINISH_MIN_NS = 2_000_000_000  # must spend at least 2 s in FINISH before switching
+
+    def _finish_drive_tick(self):
+        now = self.get_clock().now()
+        if (now - self.enterstate_time).nanoseconds < self._FINISH_MIN_NS:
+            self._follow_path()
+            self._publish_wheel(self.lin_vel, self.ang_vel)
+            return
+        robot_pose = self._robot_pose_in('map')
+        if robot_pose is not None:
+            rx, ry, _ = robot_pose
+            fx, fy = self._finish_goal
+            if not self._is_path_long() or math.hypot(fx - rx, fy - ry) < self.path_goal_tolerance:
+                self._enter_state(State.FINISH_ADJUST)
+                self.steady_time = self.get_clock().now()
+                self._publish_wheel(0.0, 0.0)
+                self.get_logger().info('FINISH goal reached — entering FINISH_ADJUST')
+                return
+        self._follow_path()
+        self._publish_wheel(self.lin_vel, self.ang_vel)
+
+    def _finish_adjust_tick(self):
+        robot_pose = self._robot_pose_in('map')
+        if robot_pose is None:
+            self._publish_wheel(0.0, 0.0)
+            return
+        rx, ry, ryaw = robot_pose
+        ax, ay = self._finish_face_away
+        away_yaw = math.atan2(ry - ay, rx - ax)
+        heading_err = self._normalize_angle(away_yaw - ryaw)
+        now = self.get_clock().now()
+        if abs(heading_err) < self.adjust_heading_tolerance:
+            self._publish_wheel(0.0, 0.0)
+            if (now - self.steady_time).nanoseconds > self._ALIGN_STEADY_NS:
+                self._enter_state(State.FINISH_PARK)
+                self.get_logger().info('FINISH_ADJUST steady — entering FINISH_PARK')
+        else:
+            self.steady_time = now
+            ang_vel = math.copysign(
+                min(self.path_max_angular_speed, self.path_heading_gain * 3 * abs(heading_err)),
+                heading_err,
+            )
+            self._publish_wheel(0.0, ang_vel)
+
+    def _finish_park_tick(self):
+        robot_pose = self._robot_pose_in('map')
+        if robot_pose is None:
+            self._publish_wheel(0.0, 0.0)
+            return
+        rx, ry, _ = robot_pose
+        ax, ay = self._finish_face_away
+        dist = math.hypot(rx - ax, ry - ay)
+        if dist <= self._FINISH_PARK_DIST_M:
+            self._enter_state(State.FINISH_UNSTOCK)
+            self._publish_wheel(0.0, 0.0)
+            self.get_logger().info(f'FINISH_PARK close enough ({dist:.2f} m) — entering FINISH_UNSTOCK')
+        else:
+            self._publish_wheel(-self.approach_vel, 0.0)  # reverse
+
+    def _finish_unstock_tick(self):
+        now = self.get_clock().now()
+        elapsed_ns = (now - self.enterstate_time).nanoseconds
+        if elapsed_ns >= self._FINISH_UNSTOCK_NS:
+            self._enter_state(State.FINISH_STOP)
+            self._publish_wheel(0.0, 0.0)
+            self.get_logger().info('FINISH_UNSTOCK done — entering FINISH_STOP')
+            return
+        # Oscillate at 2 Hz: forward first half-period, backward second
+        phase = (elapsed_ns % (2 * self._FINISH_UNSTOCK_HALF_NS))
+        vel = self.approach_vel if phase < self._FINISH_UNSTOCK_HALF_NS else -self.approach_vel
+        self._publish_wheel(vel, 0.0)
+
+    # ------------------------------------------------------------------
+    # Time-limit check (0.2 Hz)
+    # ------------------------------------------------------------------
+
+    def _check_time_limit(self):
+        self.get_logger().info(f'Checking time limit... current state: {self.state.name}')
+        if self.state == State.FINISH:
+            return
+        try:
+            with open(self._time_file, 'r') as f:
+                start_dt = datetime.strptime(f.read().strip(), '%Y-%m-%d %H:%M:%S')
+        except Exception as exc:
+            self.get_logger().error(f'Error reading time file: {exc}')
+            return
+        elapsed = _time.time() - start_dt.timestamp()
+        if elapsed > 60.0:
+            self.get_logger().info(f'Time limit reached ({elapsed:.1f} s) — entering FINISH')
+            self._enter_finish()
+        else:
+            self.get_logger().info(f'Time elapsed: {elapsed:.1f} s')
+
+    # ------------------------------------------------------------------
     # Publishing
     # ------------------------------------------------------------------
 
@@ -464,6 +652,10 @@ class MyControlNode(Node):
 
     def _publish_clamped_bear(self):
         self.bear_clamped_pub.publish(Empty())
+        robot_pose = self._robot_pose_in('map')
+        if robot_pose is not None:
+            rx, ry, _ = robot_pose
+            self._pending_block_pos = (rx, ry)
 
     def _publish_arm(self, angles_deg):
         clamped = [

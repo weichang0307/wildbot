@@ -15,7 +15,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     nodes = []
-    nodes.append(MyYoloNode())
+    # nodes.append(MyYoloNode())
     nodes.append(MyControlNode())
     nodes.append(UrdfPublisherNode())
     # nodes.append(MapPublisherNode())
