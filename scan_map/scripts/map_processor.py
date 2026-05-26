@@ -14,6 +14,7 @@ FINAL_RES = 0.01
 PLANNER_RES = 0.05
 FIELD_SIZE = 4.0
 
+SCAN_BRIDGE = False
 
 def load_scaled_template(filename, target_res):
     img = cv2.imread(os.path.join(TPL_DIR, filename), cv2.IMREAD_GRAYSCALE)
@@ -275,35 +276,48 @@ def main():
     landmarks = []
 
     for name, scan_png, run_png, base_png in objects:
-        scan_tmp = load_scaled_template(scan_png, FINAL_RES)
-        run_tmp  = load_scaled_template(run_png,  FINAL_RES)
+        if SCAN_BRIDGE:
+            scan_tmp = load_scaled_template(scan_png, FINAL_RES)
+        else:
+            scan_tmp = load_scaled_template(run_png, FINAL_RES)
+        run_tmp  = load_scaled_template(run_png, FINAL_RES)
         base_tmp = load_scaled_template(base_png, FINAL_RES)
-        if scan_tmp is None:
+
+        if SCAN_BRIDGE and scan_tmp is None:
             print(f'[map_processor] {name}: scan template empty, skipping')
             continue
 
         is_pyramid = name.startswith("Pyramid")
+        is_bridge  = name.startswith("Bridge")
+
         if is_pyramid:
             result = detect_square_pyramid(search_map, scan_tmp)
             if result is None:
                 print(f'[map_processor] {name}: no square contour found, skipping')
                 continue
             cx, cy, oyaw, score, rotated = result
-        else:
+        elif SCAN_BRIDGE and is_bridge:
             cx, cy, oyaw, score, rotated = fit_template_overlap(
                 search_map, scan_tmp, range(0, 360, 2), scales=bridge_scales)
+        else:
+            cx, cy, oyaw, score, rotated = 0.0, 0.0, 0.0, 0.0, None
 
         print(f'[map_processor] {name}: center=({cx},{cy}) yaw={oyaw}° score={score:.3f}')
-        if score < 0.10:
+        
+        if SCAN_BRIDGE and score < 0.10:
             print(f'[map_processor] {name}: score below 0.10, skipping')
             continue
 
         if rotated is not None:
             erase_rotated_footprint(search_map, rotated, cx, cy)
 
-        mx      = (cx - origin_x) * FINAL_RES
-        my      = (origin_y - cy) * FINAL_RES
-        rel_yaw = oyaw % 360
+        if not SCAN_BRIDGE and is_bridge:
+            mx, my, rel_yaw = 1.5, 2.0, 0.0
+        else:
+            mx      = (cx - origin_x) * FINAL_RES
+            my      = (origin_y - cy) * FINAL_RES
+            rel_yaw = oyaw % 360
+
         landmarks.append((name, mx, my, rel_yaw))
 
         px_x = int(mx / FINAL_RES) + margin
