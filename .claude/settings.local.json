@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /ros2_ws/target_nav/resource)",
+      "Bash(touch /ros2_ws/target_nav/resource/target_nav)"
+    ]
+  }
+}
