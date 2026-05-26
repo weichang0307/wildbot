@@ -1,8 +1,8 @@
 
 ### Task 1
 
-runtime=120.0  # seconds before auto-FINISH
-start_side=left  # 'right' or 'left'
+runtime=60.0  # seconds before auto-FINISH
+start_side=right  # 'right' or 'left'
 
 
 ## Task 2
