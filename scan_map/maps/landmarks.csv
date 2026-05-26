@@ -1,4 +1,10 @@
 Object_Type,X,Y,Yaw_Degrees
+<<<<<<< HEAD
 Bridge,3.37,1.44,54
 Pyramid_1,2.72,1.93,104.0
 Pyramid_2,2.33,1.94,44.0
+=======
+Bridge,1.5,2.0,0.0
+Pyramid_1,2.09,1.95,180.0
+Pyramid_2,3.54,3.2800000000000002,180.0
+>>>>>>> origin/master
