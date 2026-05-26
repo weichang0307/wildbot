@@ -43,14 +43,16 @@ class MyControlNode(Node):
     _ARM_TRAJ_NS        = 100_000_000    # 100 ms arm trajectory duration
     _FINISH_UNSTOCK_NS         = 5_000_000_000   # total duration of FINISH_UNSTOCK
     _FINISH_UNSTOCK_HALF_NS    =   250_000_000   # half-period at 2 Hz (forward / backward)
+    _FINISH_UNSTOCK_DELAY_NS   = 1_000_000_000   # wait before shaking starts
     # ------------------------------------------------------------------ distances
     _CLAMP_TRIGGER_M    = 0.07   # IR reading that triggers clamp
-    _FINISH_PARK_DIST_M = 0.3    # back up until this close to the face-away zone
+    _FINISH_PARK_DIST_M = 0.35    # back up until this close to the face-away zone
 
     def __init__(self):
         super().__init__('my_control_node')
 
         self.declare_parameter('start_side', 'right')  # 'right' → (-1.65,-1.4), 'left' → (1.65,-1.4)
+        self.declare_parameter('runtime', 600.0)        # seconds before auto-FINISH
 
         # Publishers
         self.wheel_pub        = self.create_publisher(TwistStamped,   '/base_controller/cmd_vel',          10)
@@ -59,6 +61,7 @@ class MyControlNode(Node):
         self.bear_clamped_pub = self.create_publisher(Empty,          '/bear_map/remove_clamped',          10)
         self.goal_pub         = self.create_publisher(PoseStamped,    'move_base_simple/goal',             10)
         self.block_zone_pub   = self.create_publisher(PoseStamped,    '/nav/block_zone',                   10)
+        self.servo_pos_pub    = self.create_publisher(Int32,           'actuator/servo_pos',                10)
 
         # Subscribers
         self.create_subscription(Int32,        '/sensor/laser',            self._on_ir_distance,    10)
@@ -79,7 +82,7 @@ class MyControlNode(Node):
         self.path_max_angular_speed     = 1.2   # rad/s
         self.path_long_distance_threshold = 0.5  # m
         self.adjust_heading_tolerance   = 0.08  # rad
-        self.adjust_max_bear_distance     = 1.0   # m — only enter ADJUST if bear is this close
+        self.adjust_max_bear_distance     = 0.7   # m — only enter ADJUST if bear is this close
         self.approach_max_target_distance = 10.0  # m — abort if bear too far
         self.approach_min_target_distance = 0.07  # m — clamp if bear this close
         self.approach_front_obstacle_distance = 0.45   # m
@@ -113,8 +116,11 @@ class MyControlNode(Node):
         self.release_arm_pose_physical = [math.degrees(a) for a in _poses_rad['release']]
         self.finding_arm_pose_physical = [math.degrees(a) for a in _poses_rad['finding']]
         start_side = self.get_parameter('start_side').value
-        self._finish_goal        = (-1.4,  1.4) if start_side == 'right' else (-1.4, -1.4)
-        self._finish_face_away   = (-1.7,  1.7) if start_side == 'right' else (-1.7, -1.7)
+        self._runtime_s = float(self.get_parameter('runtime').value)
+        self._finish_goal        = (-1.4,  -1.4) if start_side == 'right' else (-1.4, 1.4)
+        self._finish_face_away   = (-1.7,  -1.7) if start_side == 'right' else (-1.7, 1.7)
+
+        self.servo_angle = [90, 40]
 
         self._pending_block_pos = None   # (x, y) — published to /nav/block_zone once car moves away
         _BLOCK_ARM_DIST         = 1.0    # m — minimum distance before block becomes active
@@ -153,6 +159,7 @@ class MyControlNode(Node):
 
         self.create_timer(0.1, self._control_tick)
         self.create_timer(5.0, self._check_time_limit)  # 0.2 Hz
+        self.create_timer(0.1, self._pub_servo_pos)
 
         self.get_logger().info("Node started — MANUAL mode. 'q' toggles AUTO, WASD to drive.")
 
@@ -557,7 +564,7 @@ class MyControlNode(Node):
         if robot_pose is not None:
             rx, ry, _ = robot_pose
             fx, fy = self._finish_goal
-            if not self._is_path_long() or math.hypot(fx - rx, fy - ry) < self.path_goal_tolerance:
+            if not self._is_path_long() and math.hypot(fx - rx, fy - ry) < self.path_goal_tolerance:
                 self._enter_state(State.FINISH_ADJUST)
                 self.steady_time = self.get_clock().now()
                 self._publish_wheel(0.0, 0.0)
@@ -612,14 +619,22 @@ class MyControlNode(Node):
             self._publish_wheel(0.0, 0.0)
             self.get_logger().info('FINISH_UNSTOCK done — entering FINISH_STOP')
             return
+        if elapsed_ns < self._FINISH_UNSTOCK_DELAY_NS:
+            self._publish_wheel(0.0, 0.0)
+            return
         # Oscillate at 2 Hz: forward first half-period, backward second
-        phase = (elapsed_ns % (2 * self._FINISH_UNSTOCK_HALF_NS))
+        shake_ns = elapsed_ns - self._FINISH_UNSTOCK_DELAY_NS
+        phase = shake_ns % (2 * self._FINISH_UNSTOCK_HALF_NS)
         vel = self.approach_vel if phase < self._FINISH_UNSTOCK_HALF_NS else -self.approach_vel
         self._publish_wheel(vel, 0.0)
 
     # ------------------------------------------------------------------
     # Time-limit check (0.2 Hz)
     # ------------------------------------------------------------------
+
+    def _pub_servo_pos(self):
+        angle = self.servo_angle[1] if self.state == State.FINISH_UNSTOCK else self.servo_angle[0]
+        self.servo_pos_pub.publish(Int32(data=angle))
 
     def _check_time_limit(self):
         self.get_logger().info(f'Checking time limit... current state: {self.state.name}')
@@ -632,7 +647,7 @@ class MyControlNode(Node):
             self.get_logger().error(f'Error reading time file: {exc}')
             return
         elapsed = _time.time() - start_dt.timestamp()
-        if elapsed > 60.0:
+        if elapsed > self._runtime_s:
             self.get_logger().info(f'Time limit reached ({elapsed:.1f} s) — entering FINISH')
             self._enter_finish()
         else:

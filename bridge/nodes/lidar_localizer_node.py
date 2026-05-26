@@ -27,7 +27,8 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import PoseWithCovarianceStamped, TransformStamped, Point, Quaternion
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TransformStamped, Point, Quaternion
+from std_msgs.msg import Empty
 from tf2_ros import (TransformBroadcaster, Buffer, TransformListener,
                      LookupException, ConnectivityException, ExtrapolationException)
 
@@ -291,7 +292,7 @@ def _estimate_square_pose_ransac(scan_pts, field_size, seed=None, prev_pose=None
 
         if prev_pose is None and seed is not None:
             # Use configured seed to resolve 90-deg ambiguity at init.
-            sx, sy = seed
+            sx, sy = seed[0], seed[1]
             seed_dist = math.hypot(rx - sx, ry - sy)
             score -= 2.0 * seed_dist
         elif prev_pose is not None:
@@ -353,6 +354,11 @@ class LidarLocalizer(Node):
             self.get_parameter('scan_topic').value,
             self._on_scan,
             qos_profile_sensor_data)
+        self.create_subscription(Empty,       '/lidar/reinit',  self._on_reinit,      10)
+        self.create_subscription(PoseStamped, '/bridge/exit',   self._on_bridge_exit, 10)
+        self._reinit_pose = None
+        self._reinit_done = False
+
         self.pub = self.create_publisher(PoseWithCovarianceStamped, '/pose', 10)
 
         # Publish the reference map as OccupancyGrid for Foxglove visualisation
@@ -362,13 +368,28 @@ class LidarLocalizer(Node):
 
         # self.get_logger().info('LidarLocalizer ready')
 
+    def _on_bridge_exit(self, msg):
+        q = msg.pose.orientation
+        yaw = math.atan2(2.0 * (q.w * q.z + q.x * q.y),
+                         1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+        self._reinit_pose = (msg.pose.position.x, msg.pose.position.y, yaw)
+
+    def _on_reinit(self, _msg):
+        if self._reinit_done:
+            return
+        self._reinit_done = True
+        self._pose = self._seed_pose()
+        self.get_logger().info(f'Re-init — pose set to {self._pose}')
+
     def _seed_pose(self):
+        if self._reinit_pose is not None:
+            pose = self._reinit_pose
+            # self._reinit_pose = None
+            return pose
         seed_map = {
-            'right': (-2.0, -2.0),
-            'left': (-2.0, 2.0),
+            'right': (-2.0, -2.0, 0.0),
+            'left':  (-2.0,  2.0, 0.0),
         }
-        
-        self.seed_side = self.get_parameter('seed_side').value
         return seed_map[self.seed_side]
 
     def _source_pkg_dir(self):
@@ -455,6 +476,7 @@ class LidarLocalizer(Node):
 
         if self._pose is None:
             self._init_pose(pts, msg.header.stamp)
+            print(f'Initial pose: {self._pose}')
             return
 
         self._track_pose(pts, msg.header.stamp)

@@ -21,7 +21,7 @@ class FusedObstacleMapNode(Node):
         self.declare_parameter('map_frame',       'map')
         self.declare_parameter('camera_fov_deg',   60.0)  # full horizontal FOV
         self.declare_parameter('camera_min_range',  0.3)  # m — near clipping
-        self.declare_parameter('camera_max_range',  2.0)  # m — far clipping
+        self.declare_parameter('camera_max_range',  1.0)  # m — far clipping
         self.declare_parameter('score_increment', 3.0)    # added when cell seen occupied
         self.declare_parameter('score_decrement', 1.0)    # subtracted when cell seen free in FOV
         self.declare_parameter('score_threshold', 2.0)    # score >= threshold → occupied
@@ -251,7 +251,8 @@ class FusedObstacleMapNode(Node):
         cos_angle    = (dx * fx + dy * fy) / (dist + 1e-9)
         cos_half_fov = math.cos(math.radians(self.camera_fov_deg / 2.0))
 
-        return (cos_angle >= cos_half_fov) & (dist >= self.camera_min_range) & (dist <= self.camera_max_range)
+        # min range only — no max range, so obstacles anywhere in the FOV cone get cleaned
+        return (cos_angle >= cos_half_fov) & (dist >= self.camera_min_range)
 
     # ------------------------------------------------------------------
     # Explore grid helpers

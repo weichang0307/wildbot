@@ -9,29 +9,23 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     params_file = os.path.join(
-        get_package_share_directory('my_car'), 'config', 'nav2_params.yaml'
+        get_package_share_directory('bridge'), 'config', 'nav2_params.yaml'
     )
 
     start_side = LaunchConfiguration('start_side')
-    runtime    = LaunchConfiguration('runtime')
 
     return LaunchDescription([
         DeclareLaunchArgument(
             'start_side',
             default_value='right',
-            description="Which side the car starts from: 'right' or 'left'",
-        ),
-        DeclareLaunchArgument(
-            'runtime',
-            default_value='60.0',
-            description='Seconds before the node automatically enters FINISH',
+            description="Which side the robot starts from: 'right' or 'left'",
         ),
         Node(
-            package='my_car',
+            package='bridge',
             executable='run',
-            name='my_car_run',
+            name='bridge_run',
             output='screen',
-            parameters=[{'start_side': start_side, 'seed_side': start_side, 'runtime': runtime}],
+            parameters=[{'start_side': start_side, 'seed_side': start_side}],
         ),
         Node(
             package='nav2_planner',
