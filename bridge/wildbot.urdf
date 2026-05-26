@@ -329,11 +329,32 @@
     </collision>
   </link>
 
-  <joint name="safe_box_to_camera" type="fixed">
+  <link name="camera_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.01 0.01 0.01"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+  </link>
+
+  <joint name="safe_box_to_camera_link" type="fixed">
     <parent link="safe_box"/>
-    <child link="camera"/>
+    <child link="camera_link"/>
     <!-- Position: 105, 0, 155 -->
-    <origin xyz="0.005 0.0 0.275" rpy="-1.89 0 -1.57"/>
+    <origin xyz="0.005 0.0 0.275" rpy="0 0.28 0"/>
+  </joint>
+
+  <joint name="camera_link_to_camera" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Lidar -->

@@ -329,11 +329,32 @@
     </collision>
   </link>
 
-  <joint name="safe_box_to_camera" type="fixed">
+  <link name="camera_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.005"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.01 0.01 0.01"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+  </link>
+
+  <joint name="safe_box_to_camera_link" type="fixed">
     <parent link="safe_box"/>
-    <child link="camera"/>
+    <child link="camera_link"/>
     <!-- Position: 105, 0, 155 -->
-    <origin xyz="0.005 0.0 0.275" rpy="-1.89 0 -1.57"/>
+    <origin xyz="-0.02 0.0 0.275" rpy="0 0.28 0"/>
+  </joint>
+
+  <joint name="camera_link_to_camera" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
   <!-- Lidar -->
@@ -360,7 +381,7 @@
     <parent link="safe_box"/>
     <child link="lidar"/>
     <!-- Position: 50, 0, 190 -->
-    <origin xyz="-0.050 0.0 0.310" rpy="0 0 0"/>
+    <origin xyz="-0.070 0.0 0.310" rpy="0 0 0"/>
   </joint>
 
   <!-- ================= ARM & GRIPPER ================= -->
@@ -392,7 +413,7 @@
     <parent link="safe_box"/>
     <child link="arm1_link"/>
     <!-- Position: 170, 0, 26 -->
-    <origin xyz="0.170 0.0 0.026" rpy="0 0 0"/>
+    <origin xyz="0.170 0.0 0.029" rpy="0 0 0"/>
     <axis xyz="0 1 0"/>
     <limit lower="-1.5708" upper="1.5708" effort="10.0" velocity="1.0"/>
   </joint>

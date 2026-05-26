@@ -23,18 +23,21 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PyTorch with the break-system-packages flag
-RUN if [ "$GPU_TYPE" = "amd" ]; then \
-        pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.2 --break-system-packages; \
-    else \
-        pip3 install torch torchvision torchaudio --break-system-packages; \
-    fi
-
 # Copy the requirements file into the container
 COPY requirements.txt /ros2_ws/
 
 # Install the Python dependencies with the break-system-packages flag
 RUN pip3 install -r requirements.txt --break-system-packages --ignore-installed psutil
+
+# Install PyTorch after the application dependencies so it is not replaced
+# by transitive requirements such as ultralytics.
+RUN if [ "$GPU_TYPE" = "amd" ]; then \
+        pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm6.2 --break-system-packages; \
+    elif [ "$GPU_TYPE" = "nvidia" ]; then \
+        pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 --break-system-packages; \
+    else \
+        pip3 install torch torchvision torchaudio --break-system-packages; \
+    fi
 
 # Automatically source the ROS 2 environment variables
 # (Updated from humble to jazzy to match your base image)
