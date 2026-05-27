@@ -59,9 +59,9 @@ class MyControlNode(Node):
         self.arm_pub          = self.create_publisher(JointTrajectory, '/arm_controller/joint_trajectory',  10)
         self.state_pub        = self.create_publisher(String,          '/my_control/state',                 10)
         self.bear_clamped_pub = self.create_publisher(Empty,          '/bear_map/remove_clamped',          10)
-        self.goal_pub         = self.create_publisher(PoseStamped,    'move_base_simple/goal',             10)
+        self.goal_pub         = self.create_publisher(PoseStamped,    '/move_base_simple/goal',             10)
         self.block_zone_pub   = self.create_publisher(PoseStamped,    '/nav/block_zone',                   10)
-        self.servo_pos_pub    = self.create_publisher(Int32,           'actuator/servo_pos',                10)
+        self.servo_pos_pub    = self.create_publisher(Int32,           '/actuator/servo_cmd',                10)
 
         # Subscribers
         self.create_subscription(Int32,        '/sensor/laser',            self._on_ir_distance,    10)
